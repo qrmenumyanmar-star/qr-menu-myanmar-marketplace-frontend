@@ -302,6 +302,7 @@ function QuotationCard({
 
 export default function QuotationScreen() {
   const theme = useTheme();
+  const { mode } = useAppTheme();
   const { session } = useAuth();
   const { width } = useResponsive();
   const [quotations, setQuotations] = useState<Quotation[]>([]);
@@ -473,7 +474,9 @@ export default function QuotationScreen() {
     setDetailHeader({
       title: detail?.number ?? 'Quotation',
       onBack: closeDetail,
-      statusLabel: detail ? statusInfo(detail.status).label : undefined,
+      statusLabel: detail
+        ? getQuotationStatusColors(mode, detail.status).label
+        : undefined,
       breadcrumbParent: 'Orders',
       onPrint: detail
         ? format => setPrintPreview({ format, detail })
@@ -481,7 +484,7 @@ export default function QuotationScreen() {
     });
 
     return () => setDetailHeader(null);
-  }, [detailId, detail, closeDetail, setDetailHeader]);
+  }, [detailId, detail, closeDetail, setDetailHeader, mode]);
 
   const exportExcel = useCallback(async () => {
     if (!session?.token) {
