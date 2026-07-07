@@ -1,0 +1,706 @@
+import { ReactNode, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Icon, Text, useTheme } from 'react-native-paper';
+
+import { useResponsive } from '@/hooks/use-responsive';
+import { QuotationDetail, QuotationLine } from '@/types/quotation';
+
+const HEADER_BG = '#f1f5f9';
+const LABEL_COLOR = '#64748b';
+const BORDER_COLOR = '#e2e8f0';
+const DATE_PANEL_BG = '#eff6ff';
+
+type DetailTab = 'lines' | 'other';
+
+const MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+function formatMoney(value: number): string {
+  const safe = Number.isFinite(value) ? value : 0;
+  return `${safe.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} MMK`;
+}
+
+function formatDate(value: string): string {
+  if (!value?.trim()) {
+    return '';
+  }
+  const datePart = value.trim().split(/[T ]/)[0];
+  const [year, month, day] = datePart.split('-').map(Number);
+  if (!year || !month || !day) {
+    return value.trim();
+  }
+
+  const now = new Date();
+  const sameYear = year === now.getFullYear();
+  return sameYear
+    ? `${MONTHS[month - 1]} ${day}`
+    : `${MONTHS[month - 1]} ${day}, ${year}`;
+}
+
+function formatDateTime(value: string): string {
+  if (!value) {
+    return '';
+  }
+  const trimmed = value.trim();
+  if (/AM|PM/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  const normalized = trimmed.replace('T', ' ').replace(/\.\d+Z?$/, '').replace(/Z$/, '');
+  const [datePart, timePart = ''] = normalized.split(' ');
+  const [year, month, day] = datePart.split('-').map(Number);
+  if (!year || !month || !day) {
+    return trimmed;
+  }
+
+  const now = new Date();
+  const sameYear = year === now.getFullYear();
+  const dateLabel = sameYear
+    ? `${MONTHS[month - 1]} ${day}`
+    : `${MONTHS[month - 1]} ${day}, ${year}`;
+
+  if (!timePart || timePart.startsWith('00:00:00')) {
+    return dateLabel;
+  }
+
+  const [hourRaw, minuteRaw] = timePart.split(':').map(Number);
+  const hours = Number.isFinite(hourRaw) ? hourRaw : 0;
+  const minutes = Number.isFinite(minuteRaw) ? minuteRaw : 0;
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = hours % 12 || 12;
+
+  return `${dateLabel} ${hour12}:${String(minutes).padStart(2, '0')} ${period}`;
+}
+
+function SurfaceCard({ children }: { children: ReactNode }) {
+  return <View style={styles.surfaceCard}>{children}</View>;
+}
+
+function MetaField({
+  label,
+  value,
+  link = false,
+  showEmpty = false,
+}: {
+  label: string;
+  value: string;
+  link?: boolean;
+  showEmpty?: boolean;
+}) {
+  const theme = useTheme();
+  const display = value?.trim();
+
+  if (!display && !showEmpty) {
+    return null;
+  }
+
+  return (
+    <View style={styles.metaField}>
+      <Text style={styles.metaLabel}>{label}</Text>
+      <Text
+        style={[
+          styles.metaValue,
+          {
+            color: display
+              ? link
+                ? theme.colors.primary
+                : '#0f172a'
+              : LABEL_COLOR,
+          },
+          link && display ? styles.metaLink : undefined,
+        ]}
+        numberOfLines={3}>
+        {display || '—'}
+      </Text>
+    </View>
+  );
+}
+
+function DetailTabs({
+  tab,
+  onChange,
+}: {
+  tab: DetailTab;
+  onChange: (tab: DetailTab) => void;
+}) {
+  const theme = useTheme();
+
+  return (
+    <View style={styles.tabBar}>
+      {(
+        [
+          { key: 'lines' as const, label: 'Order Lines' },
+          { key: 'other' as const, label: 'Other Info' },
+        ] as const
+      ).map(item => {
+        const active = tab === item.key;
+        return (
+          <Pressable
+            key={item.key}
+            onPress={() => onChange(item.key)}
+            style={[styles.tab, active && { borderBottomColor: theme.colors.primary }]}>
+            <Text
+              style={[
+                styles.tabText,
+                {
+                  color: active ? theme.colors.primary : LABEL_COLOR,
+                  fontWeight: active ? '700' : '600',
+                },
+              ]}>
+              {item.label.toUpperCase()}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function LinesTable({ lines }: { lines: QuotationLine[] }) {
+  const theme = useTheme();
+
+  return (
+    <View style={styles.linesTable}>
+      <View style={[styles.lineHeader, { backgroundColor: HEADER_BG }]}>
+        <View style={styles.lineColProduct}>
+          <Text style={styles.headerText}>PRODUCT</Text>
+        </View>
+        <View style={styles.lineColQty}>
+          <Text style={[styles.headerText, styles.cellTextRight]}>QUANTITY</Text>
+        </View>
+        <View style={styles.lineColUnit}>
+          <Text style={[styles.headerText, styles.cellTextCenter]}>UNIT</Text>
+        </View>
+        <View style={styles.lineColPrice}>
+          <Text style={[styles.headerText, styles.cellTextRight]}>UNIT PRICE</Text>
+        </View>
+        <View style={styles.lineColTaxes}>
+          <Text style={[styles.headerText, styles.cellTextCenter]}>TAXES</Text>
+        </View>
+        <View style={styles.lineColDisc}>
+          <Text style={[styles.headerText, styles.cellTextRight]}>DISC.%</Text>
+        </View>
+        <View style={styles.lineColAmount}>
+          <Text style={[styles.headerText, styles.cellTextRight]}>AMOUNT</Text>
+        </View>
+      </View>
+
+      {lines.map(line => (
+        <View key={line.id} style={styles.lineRow}>
+          <View style={styles.lineColProduct}>
+            <Text
+              style={[styles.lineProductText, { color: theme.colors.primary }]}
+              numberOfLines={2}>
+              {line.product}
+            </Text>
+          </View>
+          <View style={styles.lineColQty}>
+            <Text style={[styles.lineCellText, styles.cellTextRight]}>
+              {line.quantity.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </Text>
+          </View>
+          <View style={styles.lineColUnit}>
+            <Text style={[styles.lineCellText, styles.cellTextCenter]} numberOfLines={1}>
+              {line.unit || 'Units'}
+            </Text>
+          </View>
+          <View style={styles.lineColPrice}>
+            <Text style={[styles.lineCellText, styles.cellTextRight]} numberOfLines={1}>
+              {formatMoney(line.unitPrice)}
+            </Text>
+          </View>
+          <View style={styles.lineColTaxes}>
+            <Text style={[styles.lineCellText, styles.cellTextCenter, { color: LABEL_COLOR }]}>
+              —
+            </Text>
+          </View>
+          <View style={styles.lineColDisc}>
+            <Text style={[styles.lineCellText, styles.cellTextRight]}>
+              {line.discountPercent.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </Text>
+          </View>
+          <View style={styles.lineColAmount}>
+            <Text
+              style={[
+                styles.lineAmountText,
+                styles.cellTextRight,
+                { color: theme.colors.primary },
+              ]}>
+              {formatMoney(line.amount)}
+            </Text>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function DeliveryNotesCard({ notes }: { notes: string }) {
+  return (
+    <SurfaceCard>
+      <View style={styles.noteCardBody}>
+        <Text style={styles.metaLabel}>DELIVERY NOTES</Text>
+        <Text style={styles.deliveryNoteText}>{notes.trim() || '—'}</Text>
+      </View>
+    </SurfaceCard>
+  );
+}
+
+function TotalsCard({ untaxed, total }: { untaxed: number; total: number }) {
+  const theme = useTheme();
+
+  return (
+    <SurfaceCard>
+      <View style={styles.totalsBlock}>
+        <View style={styles.totalLine}>
+          <Text style={styles.totalLabel}>Untaxed Amount</Text>
+          <Text style={styles.totalLineValue}>{formatMoney(untaxed)}</Text>
+        </View>
+        <View style={[styles.totalDivider, { backgroundColor: theme.colors.primary }]} />
+        <View style={styles.totalLine}>
+          <Text style={styles.totalLabelBold}>Total</Text>
+          <Text style={[styles.totalValue, { color: theme.colors.primary }]}>
+            {formatMoney(total)}
+          </Text>
+        </View>
+      </View>
+    </SurfaceCard>
+  );
+}
+
+type QuotationDetailViewProps = {
+  detail: QuotationDetail | null;
+  loading: boolean;
+  error: string;
+  onBack: () => void;
+};
+
+export function QuotationDetailView({
+  detail,
+  loading,
+  error,
+}: QuotationDetailViewProps) {
+  const theme = useTheme();
+  const { width } = useResponsive();
+  const isMobile = width < 768;
+  const [tab, setTab] = useState<DetailTab>('lines');
+
+  const untaxed =
+    detail && detail.untaxedAmount > 0
+      ? detail.untaxedAmount
+      : detail?.lines.reduce((sum, line) => sum + line.amount, 0) ?? 0;
+
+  return (
+    <View style={styles.container}>
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator />
+          <Text style={{ marginTop: 12, color: theme.colors.onSurfaceVariant }}>
+            Loading quotation from Odoo...
+          </Text>
+        </View>
+      ) : error ? (
+        <View style={styles.center}>
+          <Text variant="titleMedium" style={{ fontWeight: '600', marginBottom: 8 }}>
+            Could not load quotation
+          </Text>
+          <Text style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
+            {error}
+          </Text>
+        </View>
+      ) : detail ? (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isMobile ? styles.scrollContentMobile : styles.scrollContentDesktop,
+          ]}
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.page}>
+            <SurfaceCard>
+              <View style={[styles.infoLayout, isMobile && styles.infoLayoutStack]}>
+                <View style={styles.infoCol}>
+                  <MetaField label="CUSTOMER" value={detail.customer} link />
+                  <MetaField label="SALESPERSON" value={detail.salesperson} link />
+                  <MetaField label="DELIVERY ADDRESS" value={detail.deliveryAddress} />
+                </View>
+                <View style={styles.infoCol}>
+                  <MetaField
+                    label="EXPIRATION"
+                    value={formatDate(detail.expiration)}
+                    showEmpty
+                  />
+                  <MetaField label="PRICELIST" value={detail.pricelist} showEmpty />
+                  <MetaField
+                    label="PREFERRED DELIVERY DATE"
+                    value={formatDate(detail.preferredDeliveryDate)}
+                    showEmpty
+                  />
+                </View>
+                <View style={[styles.datePanel, isMobile && styles.datePanelStack]}>
+                  <Text style={styles.metaLabel}>QUOTATION DATE</Text>
+                  <View style={styles.dateRow}>
+                    <Icon source="calendar" size={18} color={theme.colors.primary} />
+                    <Text style={styles.dateValue}>{formatDateTime(detail.orderDate)}</Text>
+                  </View>
+                  <View style={styles.infoDivider} />
+                  <View style={styles.sourceRow}>
+                    <Text style={styles.metaLabel}>SOURCE</Text>
+                    <Text style={styles.sourceValue}>Direct Sale</Text>
+                  </View>
+                </View>
+              </View>
+            </SurfaceCard>
+
+            <SurfaceCard>
+              <DetailTabs tab={tab} onChange={setTab} />
+
+              {tab === 'lines' ? (
+                <View style={styles.tabPanel}>
+                  {detail.lines.length === 0 ? (
+                    <Text style={styles.emptyLines}>No order lines.</Text>
+                  ) : (
+                    <LinesTable lines={detail.lines} />
+                  )}
+                  <Pressable style={styles.addProductRow}>
+                    <Icon source="plus" size={16} color={theme.colors.primary} />
+                    <Text style={[styles.addProductText, { color: theme.colors.primary }]}>
+                      ADD A PRODUCT
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={styles.tabPanel}>
+                  <View style={[styles.otherGrid, isMobile && styles.otherGridStack]}>
+                    <MetaField
+                      label="MEMBERSHIP COUPON STATUS"
+                      value={detail.membershipCouponStatus}
+                      showEmpty
+                    />
+                    <MetaField
+                      label="MEMBERSHIP COUPON CODE"
+                      value={detail.membershipCouponTicket}
+                      showEmpty
+                    />
+                    <MetaField label="PHONENUMBER" value={detail.phoneNumber} showEmpty />
+                    <MetaField label="PAYMENT METHOD" value={detail.paymentMethod} />
+                    <MetaField label="PAYMENT TERMS" value={detail.paymentTerms} />
+                    <MetaField label="INVOICE ADDRESS" value={detail.invoiceAddress} />
+                  </View>
+                </View>
+              )}
+            </SurfaceCard>
+
+            <View style={[styles.footerRow, isMobile && styles.footerRowStack]}>
+              <View style={styles.footerNotes}>
+                <DeliveryNotesCard notes={detail.deliveryNotes} />
+              </View>
+              <View style={[styles.footerTotals, isMobile && styles.footerTotalsStack]}>
+                <TotalsCard untaxed={untaxed} total={detail.total} />
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingBottom: 28,
+  },
+  scrollContentMobile: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+  },
+  scrollContentDesktop: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+  },
+  page: {
+    width: '100%',
+    maxWidth: 1100,
+    gap: 14,
+  },
+  surfaceCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+    overflow: 'hidden',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  infoLayout: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 0,
+    padding: 16,
+  },
+  infoLayoutStack: {
+    flexDirection: 'column',
+    gap: 14,
+  },
+  infoCol: {
+    flex: 1,
+    gap: 14,
+    paddingRight: 12,
+  },
+  datePanel: {
+    flex: 0.95,
+    minWidth: 200,
+    backgroundColor: DATE_PANEL_BG,
+    borderRadius: 6,
+    padding: 14,
+    gap: 8,
+    justifyContent: 'center',
+  },
+  datePanelStack: {
+    flex: 0,
+    minWidth: 0,
+  },
+  metaField: {
+    gap: 4,
+  },
+  metaLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    color: LABEL_COLOR,
+  },
+  metaValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  metaLink: {
+    fontWeight: '700',
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  dateValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f172a',
+    flex: 1,
+  },
+  infoDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#bfdbfe',
+    marginVertical: 10,
+  },
+  sourceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  sourceValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0f172a',
+    textAlign: 'right',
+    flex: 1,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER_COLOR,
+    paddingHorizontal: 8,
+  },
+  tab: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
+    marginBottom: -1,
+  },
+  tabText: {
+    fontSize: 11,
+    letterSpacing: 0.5,
+  },
+  tabPanel: {
+    padding: 16,
+    gap: 12,
+  },
+  emptyLines: {
+    textAlign: 'center',
+    opacity: 0.7,
+    paddingVertical: 20,
+    fontSize: 13,
+    color: LABEL_COLOR,
+  },
+  linesTable: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  lineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER_COLOR,
+    gap: 8,
+  },
+  headerText: {
+    fontWeight: '700',
+    fontSize: 10,
+    letterSpacing: 0.4,
+    color: LABEL_COLOR,
+  },
+  lineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: BORDER_COLOR,
+    gap: 8,
+    backgroundColor: '#fff',
+  },
+  lineProductText: {
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  lineCellText: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#334155',
+  },
+  lineAmountText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  lineColProduct: { flex: 2.2, minWidth: 0, justifyContent: 'center' },
+  lineColQty: { flex: 0.75, minWidth: 0, justifyContent: 'center' },
+  lineColUnit: { flex: 0.55, minWidth: 0, justifyContent: 'center' },
+  lineColPrice: { flex: 1.1, minWidth: 0, justifyContent: 'center' },
+  lineColTaxes: { flex: 0.45, minWidth: 0, justifyContent: 'center' },
+  lineColDisc: { flex: 0.45, minWidth: 0, justifyContent: 'center' },
+  lineColAmount: { flex: 1.1, minWidth: 0, justifyContent: 'center' },
+  cellTextRight: { textAlign: 'right' },
+  cellTextCenter: { textAlign: 'center' },
+  addProductRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: 4,
+  },
+  addProductText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  otherGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  otherGridStack: {
+    flexDirection: 'column',
+  },
+  noteCardBody: {
+    padding: 16,
+    gap: 8,
+    flex: 1,
+  },
+  deliveryNoteText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#334155',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 14,
+  },
+  footerRowStack: {
+    flexDirection: 'column',
+  },
+  footerNotes: {
+    flex: 1,
+    minWidth: 0,
+  },
+  footerTotals: {
+    width: 300,
+    maxWidth: '100%',
+    alignSelf: 'stretch',
+  },
+  footerTotalsStack: {
+    width: '100%',
+  },
+  totalsBlock: {
+    padding: 16,
+    gap: 8,
+    minWidth: 260,
+  },
+  totalLine: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    gap: 24,
+  },
+  totalDivider: {
+    height: 2,
+    borderRadius: 1,
+    marginVertical: 2,
+  },
+  totalLabel: {
+    fontSize: 12,
+    color: LABEL_COLOR,
+    fontWeight: '500',
+  },
+  totalLabelBold: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  totalLineValue: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  totalValue: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+});
