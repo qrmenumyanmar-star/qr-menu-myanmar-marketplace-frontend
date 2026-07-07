@@ -34,7 +34,7 @@ type CreateContactForm = {
   street2: string;
   township: string;
   townshipId: string;
-  tags: string;
+  tagIds: string[];
 };
 
 const EMPTY_FORM: CreateContactForm = {
@@ -45,7 +45,7 @@ const EMPTY_FORM: CreateContactForm = {
   street2: '',
   township: '',
   townshipId: '',
-  tags: '',
+  tagIds: [],
 };
 
 function cleanLabel(value: string): string {
@@ -82,17 +82,10 @@ function findMatchingTownship(
   return exact || contains;
 }
 
-function appendTag(currentTags: string, tagName: string): string {
-  const names = currentTags
-    .split(',')
-    .map(tag => tag.trim())
-    .filter(Boolean);
-
-  if (names.some(tag => cleanLabel(tag) === cleanLabel(tagName))) {
-    return currentTags;
-  }
-
-  return names.length ? `${names.join(', ')}, ${tagName}` : tagName;
+function toggleTag(currentTagIds: string[], tagId: string): string[] {
+  return currentTagIds.includes(tagId)
+    ? currentTagIds.filter(id => id !== tagId)
+    : [...currentTagIds, tagId];
 }
 
 export function CreateContactView() {
@@ -325,7 +318,7 @@ export function CreateContactView() {
         street: form.street.trim() || undefined,
         street2: form.street2.trim() || undefined,
         townshipId: matchedTownship.id,
-        tags: form.tags.trim() || undefined,
+        tagIds: form.tagIds.length > 0 ? form.tagIds : undefined,
       });
 
       router.replace({
@@ -412,12 +405,12 @@ export function CreateContactView() {
                   </Text>
                   {match.street ? (
                     <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                      Street 1: {match.street}
+                      Address 1: {match.street}
                     </Text>
                   ) : null}
                   {match.street2 ? (
                     <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                      Street 2: {match.street2}
+                      Address 2: {match.street2}
                     </Text>
                   ) : null}
                   {match.township || match.city ? (
@@ -455,15 +448,15 @@ export function CreateContactView() {
 
         <TextInput
           mode="outlined"
-          label="Street 1"
-          placeholder="Street / building / shop address..."
+          label="Address 1"
+          placeholder="Building / shop address..."
           value={form.street}
           onChangeText={value => setForm(prev => ({ ...prev, street: value }))}
         />
 
         <TextInput
           mode="outlined"
-          label="Street 2"
+          label="Address 2"
           placeholder="Additional address / landmark..."
           value={form.street2}
           onChangeText={value => setForm(prev => ({ ...prev, street2: value }))}
@@ -477,34 +470,37 @@ export function CreateContactView() {
           placeholder="Search township"
         />
 
-        <TextInput
-          mode="outlined"
-          label="Contact Tags"
-          placeholder="Example: Shop, VIP"
-          value={form.tags}
-          onChangeText={value => setForm(prev => ({ ...prev, tags: value }))}
-        />
-
-        {tagOptions.length > 0 ? (
-          <View style={styles.tagSuggestions}>
-            <Text variant="labelLarge" style={styles.tagSuggestionsLabel}>
-              Tag suggestions
-            </Text>
+        <View style={styles.tagSuggestions}>
+          <Text variant="labelLarge" style={styles.tagSuggestionsLabel}>
+            Contact Tags
+          </Text>
+          {tagOptions.length > 0 ? (
             <View style={styles.tagChips}>
-              {tagOptions.map(tag => (
-                <Chip
-                  key={tag.id}
-                  compact
-                  onPress={() =>
-                    setForm(prev => ({ ...prev, tags: appendTag(prev.tags, tag.name) }))
-                  }
-                  style={styles.tagChip}>
-                  {tag.name}
-                </Chip>
-              ))}
+              {tagOptions.map(tag => {
+                const selected = form.tagIds.includes(tag.id);
+                return (
+                  <Chip
+                    key={tag.id}
+                    compact
+                    selected={selected}
+                    onPress={() =>
+                      setForm(prev => ({
+                        ...prev,
+                        tagIds: toggleTag(prev.tagIds, tag.id),
+                      }))
+                    }
+                    style={styles.tagChip}>
+                    {tag.name}
+                  </Chip>
+                );
+              })}
             </View>
-          </View>
-        ) : null}
+          ) : (
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              No tags found in Odoo. Add contact tags in Odoo first.
+            </Text>
+          )}
+        </View>
 
         {formError ? <HelperText type="error">{formError}</HelperText> : null}
       </ScrollView>

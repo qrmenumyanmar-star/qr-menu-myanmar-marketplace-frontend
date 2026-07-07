@@ -118,8 +118,8 @@ export function ContactDetailView({
                 <MetaField label="TAGS" value={detail.tags} />
               </View>
               <View style={styles.infoCol}>
-                <MetaField label="STREET" value={detail.street} />
-                <MetaField label="STREET2" value={detail.street2} />
+                <MetaField label="ADDRESS 1" value={detail.street} />
+                <MetaField label="ADDRESS 2" value={detail.street2} />
                 <MetaField label="TOWNSHIP" value={detail.township} />
                 <MetaField label="CITY" value={detail.city} />
                 <MetaField label="STATE" value={detail.state} />

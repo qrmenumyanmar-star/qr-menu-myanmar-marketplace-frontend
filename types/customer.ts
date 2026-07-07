@@ -10,7 +10,7 @@ export type CreateCustomerInput = {
   street?: string;
   street2?: string;
   townshipId?: string;
-  tags?: string;
+  tagIds?: string[];
 };
 
 export type ContactTag = {
