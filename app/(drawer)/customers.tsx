@@ -30,6 +30,8 @@ import {
   matchesContactFilters,
 } from '@/components/contact/ContactFilterBar';
 import { useAuth } from '@/contexts/auth-context';
+import { useAppTheme } from '@/contexts/theme-context';
+import { getContactStatusColors } from '@/constants/status-colors';
 import {
   HeaderAction,
   useHeaderActions,
@@ -98,33 +100,18 @@ function formatDate(value: unknown) {
   return `${MONTHS[month - 1]} ${day}`;
 }
 
-function statusColors(status: string): { bg: string; fg: string } {
-  const value = status.toLowerCase();
-  if (value.includes('inactive')) {
-    return { bg: '#FEE2E2', fg: '#991B1B' };
-  }
-  if (value.includes('follow')) {
-    return { bg: '#FEF3C7', fg: '#92400E' };
-  }
-  if (value.includes('new customer')) {
-    return { bg: '#DBEAFE', fg: '#1E40AF' };
-  }
-  if (value.includes('active')) {
-    return { bg: '#DCFCE7', fg: '#166534' };
-  }
-  return { bg: '#E2E8F0', fg: '#475569' };
-}
-
 function initials(name: string) {
   const parts = (name ?? '').trim().split(/\s+/).slice(0, 2);
   return parts.map(part => part[0]?.toUpperCase() ?? '').join('') || '?';
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const { mode } = useAppTheme();
+
   if (!status) {
     return <Text style={{ opacity: 0.5 }}>—</Text>;
   }
-  const { bg, fg } = statusColors(status);
+  const { bg, fg } = getContactStatusColors(mode, status);
   return (
     <View style={[styles.statusBadge, { backgroundColor: bg }]}>
       <Text

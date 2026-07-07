@@ -2,14 +2,26 @@ import { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Avatar, Text, useTheme } from 'react-native-paper';
 
+import { useDetailTheme } from '@/hooks/use-detail-theme';
 import { useResponsive } from '@/hooks/use-responsive';
 import { CustomerDetail } from '@/types/customer';
 
-const LABEL_COLOR = '#64748b';
-const BORDER_COLOR = '#e2e8f0';
-
 function SurfaceCard({ children }: { children: ReactNode }) {
-  return <View style={styles.surfaceCard}>{children}</View>;
+  const detail = useDetailTheme();
+
+  return (
+    <View
+      style={[
+        styles.surfaceCard,
+        {
+          backgroundColor: detail.surface,
+          borderColor: detail.border,
+          shadowColor: detail.shadow,
+        },
+      ]}>
+      {children}
+    </View>
+  );
 }
 
 function MetaField({
@@ -22,11 +34,12 @@ function MetaField({
   link?: boolean;
 }) {
   const theme = useTheme();
+  const detail = useDetailTheme();
   const display = value?.trim();
 
   return (
     <View style={styles.metaField}>
-      <Text style={styles.metaLabel}>{label}</Text>
+      <Text style={[styles.metaLabel, { color: detail.label }]}>{label}</Text>
       <Text
         style={[
           styles.metaValue,
@@ -34,8 +47,8 @@ function MetaField({
             color: display
               ? link
                 ? theme.colors.primary
-                : '#0f172a'
-              : LABEL_COLOR,
+                : detail.onSurface
+              : detail.label,
           },
           link && display ? styles.metaLink : undefined,
         ]}
@@ -63,11 +76,12 @@ export function ContactDetailView({
   error,
 }: ContactDetailViewProps) {
   const theme = useTheme();
+  const detailTheme = useDetailTheme();
   const { width } = useResponsive();
   const isMobile = width < 768;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: detailTheme.background }]}>
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator />
@@ -77,7 +91,9 @@ export function ContactDetailView({
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <Text variant="titleMedium" style={{ fontWeight: '600', marginBottom: 8 }}>
+          <Text
+            variant="titleMedium"
+            style={{ fontWeight: '600', marginBottom: 8, color: theme.colors.onSurface }}>
             Could not load contact
           </Text>
           <Text style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
@@ -97,11 +113,15 @@ export function ContactDetailView({
                 labelStyle={{ color: theme.colors.onSecondaryContainer }}
               />
               <View style={styles.heroText}>
-                <Text variant="headlineSmall" style={styles.heroName}>
+                <Text
+                  variant="headlineSmall"
+                  style={[styles.heroName, { color: detailTheme.onSurface }]}>
                   {detail.name}
                 </Text>
                 {detail.memberCode ? (
-                  <Text style={styles.heroMeta}>Member Code: {detail.memberCode}</Text>
+                  <Text style={[styles.heroMeta, { color: detailTheme.label }]}>
+                    Member Code: {detail.memberCode}
+                  </Text>
                 ) : null}
               </View>
             </View>
@@ -149,12 +169,9 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   surfaceCard: {
-    backgroundColor: '#fff',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: BORDER_COLOR,
     overflow: 'hidden',
-    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
@@ -172,10 +189,8 @@ const styles = StyleSheet.create({
   },
   heroName: {
     fontWeight: '700',
-    color: '#0f172a',
   },
   heroMeta: {
-    color: LABEL_COLOR,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -199,7 +214,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.6,
-    color: LABEL_COLOR,
   },
   metaValue: {
     fontSize: 14,

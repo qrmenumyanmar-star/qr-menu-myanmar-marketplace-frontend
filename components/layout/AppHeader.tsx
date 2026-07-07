@@ -120,7 +120,7 @@ export function AppHeader({ navigation, options }: DrawerHeaderProps) {
                   {detailHeader.title}
                 </Text>
                 {detailHeader.statusLabel ? (
-                  <View style={styles.detailBadge}>
+                  <View style={[styles.detailBadge, { backgroundColor: colors.headerFieldBg }]}>
                     <Text style={[styles.detailBadgeText, { color: theme.colors.primary }]}>
                       {detailHeader.statusLabel.toUpperCase()}
                     </Text>
@@ -281,7 +281,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   detailBadge: {
-    backgroundColor: '#fff',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 4,

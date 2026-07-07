@@ -2,13 +2,9 @@ import { ReactNode, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Icon, Text, useTheme } from 'react-native-paper';
 
+import { useDetailTheme } from '@/hooks/use-detail-theme';
 import { useResponsive } from '@/hooks/use-responsive';
 import { QuotationDetail, QuotationLine } from '@/types/quotation';
-
-const HEADER_BG = '#f1f5f9';
-const LABEL_COLOR = '#64748b';
-const BORDER_COLOR = '#e2e8f0';
-const DATE_PANEL_BG = '#eff6ff';
 
 type DetailTab = 'lines' | 'other';
 
@@ -78,7 +74,21 @@ function formatDateTime(value: string): string {
 }
 
 function SurfaceCard({ children }: { children: ReactNode }) {
-  return <View style={styles.surfaceCard}>{children}</View>;
+  const detail = useDetailTheme();
+
+  return (
+    <View
+      style={[
+        styles.surfaceCard,
+        {
+          backgroundColor: detail.surface,
+          borderColor: detail.border,
+          shadowColor: detail.shadow,
+        },
+      ]}>
+      {children}
+    </View>
+  );
 }
 
 function MetaField({
@@ -93,6 +103,7 @@ function MetaField({
   showEmpty?: boolean;
 }) {
   const theme = useTheme();
+  const detail = useDetailTheme();
   const display = value?.trim();
 
   if (!display && !showEmpty) {
@@ -101,7 +112,7 @@ function MetaField({
 
   return (
     <View style={styles.metaField}>
-      <Text style={styles.metaLabel}>{label}</Text>
+      <Text style={[styles.metaLabel, { color: detail.label }]}>{label}</Text>
       <Text
         style={[
           styles.metaValue,
@@ -109,8 +120,8 @@ function MetaField({
             color: display
               ? link
                 ? theme.colors.primary
-                : '#0f172a'
-              : LABEL_COLOR,
+                : detail.onSurface
+              : detail.label,
           },
           link && display ? styles.metaLink : undefined,
         ]}
@@ -129,9 +140,10 @@ function DetailTabs({
   onChange: (tab: DetailTab) => void;
 }) {
   const theme = useTheme();
+  const detail = useDetailTheme();
 
   return (
-    <View style={styles.tabBar}>
+    <View style={[styles.tabBar, { borderBottomColor: detail.border }]}>
       {(
         [
           { key: 'lines' as const, label: 'Order Lines' },
@@ -148,7 +160,7 @@ function DetailTabs({
               style={[
                 styles.tabText,
                 {
-                  color: active ? theme.colors.primary : LABEL_COLOR,
+                  color: active ? theme.colors.primary : detail.label,
                   fontWeight: active ? '700' : '600',
                 },
               ]}>
@@ -163,35 +175,63 @@ function DetailTabs({
 
 function LinesTable({ lines }: { lines: QuotationLine[] }) {
   const theme = useTheme();
+  const detail = useDetailTheme();
 
   return (
-    <View style={styles.linesTable}>
-      <View style={[styles.lineHeader, { backgroundColor: HEADER_BG }]}>
+    <View style={[styles.linesTable, { borderColor: detail.border }]}>
+      <View
+        style={[
+          styles.lineHeader,
+          {
+            backgroundColor: detail.headerBg,
+            borderBottomColor: detail.border,
+          },
+        ]}>
         <View style={styles.lineColProduct}>
-          <Text style={styles.headerText}>PRODUCT</Text>
+          <Text style={[styles.headerText, { color: detail.label }]}>PRODUCT</Text>
         </View>
         <View style={styles.lineColQty}>
-          <Text style={[styles.headerText, styles.cellTextRight]}>QUANTITY</Text>
+          <Text style={[styles.headerText, styles.cellTextRight, { color: detail.label }]}>
+            QUANTITY
+          </Text>
         </View>
         <View style={styles.lineColUnit}>
-          <Text style={[styles.headerText, styles.cellTextCenter]}>UNIT</Text>
+          <Text style={[styles.headerText, styles.cellTextCenter, { color: detail.label }]}>
+            UNIT
+          </Text>
         </View>
         <View style={styles.lineColPrice}>
-          <Text style={[styles.headerText, styles.cellTextRight]}>UNIT PRICE</Text>
+          <Text style={[styles.headerText, styles.cellTextRight, { color: detail.label }]}>
+            UNIT PRICE
+          </Text>
         </View>
         <View style={styles.lineColTaxes}>
-          <Text style={[styles.headerText, styles.cellTextCenter]}>TAXES</Text>
+          <Text style={[styles.headerText, styles.cellTextCenter, { color: detail.label }]}>
+            TAXES
+          </Text>
         </View>
         <View style={styles.lineColDisc}>
-          <Text style={[styles.headerText, styles.cellTextRight]}>DISC.%</Text>
+          <Text style={[styles.headerText, styles.cellTextRight, { color: detail.label }]}>
+            DISC.%
+          </Text>
         </View>
         <View style={styles.lineColAmount}>
-          <Text style={[styles.headerText, styles.cellTextRight]}>AMOUNT</Text>
+          <Text style={[styles.headerText, styles.cellTextRight, { color: detail.label }]}>
+            AMOUNT
+          </Text>
         </View>
       </View>
 
       {lines.map(line => (
-        <View key={line.id} style={styles.lineRow}>
+        <View
+          key={line.id}
+          style={[
+            styles.lineRow,
+            {
+              backgroundColor: detail.surface,
+              borderBottomColor: detail.border,
+            },
+          ]}>
           <View style={styles.lineColProduct}>
             <Text
               style={[styles.lineProductText, { color: theme.colors.primary }]}
@@ -200,7 +240,7 @@ function LinesTable({ lines }: { lines: QuotationLine[] }) {
             </Text>
           </View>
           <View style={styles.lineColQty}>
-            <Text style={[styles.lineCellText, styles.cellTextRight]}>
+            <Text style={[styles.lineCellText, styles.cellTextRight, { color: detail.cellText }]}>
               {line.quantity.toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -208,22 +248,26 @@ function LinesTable({ lines }: { lines: QuotationLine[] }) {
             </Text>
           </View>
           <View style={styles.lineColUnit}>
-            <Text style={[styles.lineCellText, styles.cellTextCenter]} numberOfLines={1}>
+            <Text
+              style={[styles.lineCellText, styles.cellTextCenter, { color: detail.cellText }]}
+              numberOfLines={1}>
               {line.unit || 'Units'}
             </Text>
           </View>
           <View style={styles.lineColPrice}>
-            <Text style={[styles.lineCellText, styles.cellTextRight]} numberOfLines={1}>
+            <Text
+              style={[styles.lineCellText, styles.cellTextRight, { color: detail.cellText }]}
+              numberOfLines={1}>
               {formatMoney(line.unitPrice)}
             </Text>
           </View>
           <View style={styles.lineColTaxes}>
-            <Text style={[styles.lineCellText, styles.cellTextCenter, { color: LABEL_COLOR }]}>
+            <Text style={[styles.lineCellText, styles.cellTextCenter, { color: detail.label }]}>
               —
             </Text>
           </View>
           <View style={styles.lineColDisc}>
-            <Text style={[styles.lineCellText, styles.cellTextRight]}>
+            <Text style={[styles.lineCellText, styles.cellTextRight, { color: detail.cellText }]}>
               {line.discountPercent.toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -247,11 +291,15 @@ function LinesTable({ lines }: { lines: QuotationLine[] }) {
 }
 
 function DeliveryNotesCard({ notes }: { notes: string }) {
+  const detail = useDetailTheme();
+
   return (
     <SurfaceCard>
       <View style={styles.noteCardBody}>
-        <Text style={styles.metaLabel}>DELIVERY NOTES</Text>
-        <Text style={styles.deliveryNoteText}>{notes.trim() || '—'}</Text>
+        <Text style={[styles.metaLabel, { color: detail.label }]}>DELIVERY NOTES</Text>
+        <Text style={[styles.deliveryNoteText, { color: detail.cellText }]}>
+          {notes.trim() || '—'}
+        </Text>
       </View>
     </SurfaceCard>
   );
@@ -259,17 +307,20 @@ function DeliveryNotesCard({ notes }: { notes: string }) {
 
 function TotalsCard({ untaxed, total }: { untaxed: number; total: number }) {
   const theme = useTheme();
+  const detail = useDetailTheme();
 
   return (
     <SurfaceCard>
       <View style={styles.totalsBlock}>
         <View style={styles.totalLine}>
-          <Text style={styles.totalLabel}>Untaxed Amount</Text>
-          <Text style={styles.totalLineValue}>{formatMoney(untaxed)}</Text>
+          <Text style={[styles.totalLabel, { color: detail.label }]}>Untaxed Amount</Text>
+          <Text style={[styles.totalLineValue, { color: detail.cellText }]}>
+            {formatMoney(untaxed)}
+          </Text>
         </View>
         <View style={[styles.totalDivider, { backgroundColor: theme.colors.primary }]} />
         <View style={styles.totalLine}>
-          <Text style={styles.totalLabelBold}>Total</Text>
+          <Text style={[styles.totalLabelBold, { color: detail.onSurface }]}>Total</Text>
           <Text style={[styles.totalValue, { color: theme.colors.primary }]}>
             {formatMoney(total)}
           </Text>
@@ -292,6 +343,7 @@ export function QuotationDetailView({
   error,
 }: QuotationDetailViewProps) {
   const theme = useTheme();
+  const detailTheme = useDetailTheme();
   const { width } = useResponsive();
   const isMobile = width < 768;
   const [tab, setTab] = useState<DetailTab>('lines');
@@ -302,7 +354,7 @@ export function QuotationDetailView({
       : detail?.lines.reduce((sum, line) => sum + line.amount, 0) ?? 0;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: detailTheme.background }]}>
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator />
@@ -312,7 +364,9 @@ export function QuotationDetailView({
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <Text variant="titleMedium" style={{ fontWeight: '600', marginBottom: 8 }}>
+          <Text
+            variant="titleMedium"
+            style={{ fontWeight: '600', marginBottom: 8, color: theme.colors.onSurface }}>
             Could not load quotation
           </Text>
           <Text style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
@@ -348,16 +402,29 @@ export function QuotationDetailView({
                     showEmpty
                   />
                 </View>
-                <View style={[styles.datePanel, isMobile && styles.datePanelStack]}>
-                  <Text style={styles.metaLabel}>QUOTATION DATE</Text>
+                <View
+                  style={[
+                    styles.datePanel,
+                    isMobile && styles.datePanelStack,
+                    { backgroundColor: detailTheme.panelBg },
+                  ]}>
+                  <Text style={[styles.metaLabel, { color: detailTheme.label }]}>
+                    QUOTATION DATE
+                  </Text>
                   <View style={styles.dateRow}>
                     <Icon source="calendar" size={18} color={theme.colors.primary} />
-                    <Text style={styles.dateValue}>{formatDateTime(detail.orderDate)}</Text>
+                    <Text style={[styles.dateValue, { color: detailTheme.onSurface }]}>
+                      {formatDateTime(detail.orderDate)}
+                    </Text>
                   </View>
-                  <View style={styles.infoDivider} />
+                  <View
+                    style={[styles.infoDivider, { backgroundColor: detailTheme.accentDivider }]}
+                  />
                   <View style={styles.sourceRow}>
-                    <Text style={styles.metaLabel}>SOURCE</Text>
-                    <Text style={styles.sourceValue}>Direct Sale</Text>
+                    <Text style={[styles.metaLabel, { color: detailTheme.label }]}>SOURCE</Text>
+                    <Text style={[styles.sourceValue, { color: detailTheme.onSurface }]}>
+                      Direct Sale
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -369,7 +436,9 @@ export function QuotationDetailView({
               {tab === 'lines' ? (
                 <View style={styles.tabPanel}>
                   {detail.lines.length === 0 ? (
-                    <Text style={styles.emptyLines}>No order lines.</Text>
+                    <Text style={[styles.emptyLines, { color: detailTheme.label }]}>
+                      No order lines.
+                    </Text>
                   ) : (
                     <LinesTable lines={detail.lines} />
                   )}
@@ -420,7 +489,6 @@ export function QuotationDetailView({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
   center: {
     flex: 1,
@@ -450,12 +518,9 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   surfaceCard: {
-    backgroundColor: '#fff',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: BORDER_COLOR,
     overflow: 'hidden',
-    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
@@ -479,7 +544,6 @@ const styles = StyleSheet.create({
   datePanel: {
     flex: 0.95,
     minWidth: 200,
-    backgroundColor: DATE_PANEL_BG,
     borderRadius: 6,
     padding: 14,
     gap: 8,
@@ -496,7 +560,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.6,
-    color: LABEL_COLOR,
   },
   metaValue: {
     fontSize: 14,
@@ -515,12 +578,10 @@ const styles = StyleSheet.create({
   dateValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0f172a',
     flex: 1,
   },
   infoDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#bfdbfe',
     marginVertical: 10,
   },
   sourceRow: {
@@ -532,14 +593,12 @@ const styles = StyleSheet.create({
   sourceValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#0f172a',
     textAlign: 'right',
     flex: 1,
   },
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: BORDER_COLOR,
     paddingHorizontal: 8,
   },
   tab: {
@@ -562,12 +621,10 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     paddingVertical: 20,
     fontSize: 13,
-    color: LABEL_COLOR,
   },
   linesTable: {
     width: '100%',
     borderWidth: 1,
-    borderColor: BORDER_COLOR,
     borderRadius: 6,
     overflow: 'hidden',
   },
@@ -577,14 +634,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: BORDER_COLOR,
     gap: 8,
   },
   headerText: {
     fontWeight: '700',
     fontSize: 10,
     letterSpacing: 0.4,
-    color: LABEL_COLOR,
   },
   lineRow: {
     flexDirection: 'row',
@@ -592,9 +647,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: BORDER_COLOR,
     gap: 8,
-    backgroundColor: '#fff',
   },
   lineProductText: {
     fontSize: 13,
@@ -604,7 +657,6 @@ const styles = StyleSheet.create({
   lineCellText: {
     fontSize: 12,
     lineHeight: 16,
-    color: '#334155',
   },
   lineAmountText: {
     fontSize: 13,
@@ -646,7 +698,6 @@ const styles = StyleSheet.create({
   deliveryNoteText: {
     fontSize: 14,
     lineHeight: 22,
-    color: '#334155',
   },
   footerRow: {
     flexDirection: 'row',
@@ -686,18 +737,15 @@ const styles = StyleSheet.create({
   },
   totalLabel: {
     fontSize: 12,
-    color: LABEL_COLOR,
     fontWeight: '500',
   },
   totalLabelBold: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#0f172a',
   },
   totalLineValue: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#334155',
   },
   totalValue: {
     fontSize: 20,

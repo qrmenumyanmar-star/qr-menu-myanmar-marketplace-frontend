@@ -14,6 +14,22 @@ export const unstable_settings = {
   anchor: '(drawer)',
 };
 
+function ThemeLoading() {
+  const { paperTheme } = useAppTheme();
+
+  return (
+    <View
+      style={{
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: paperTheme.colors.background,
+      }}>
+      <ActivityIndicator />
+    </View>
+  );
+}
+
 function AuthGate({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const segments = useSegments();
@@ -37,11 +53,7 @@ function AuthGate({ children }: { children: ReactNode }) {
   }, [isAuthenticated, isLoading, router, segments]);
 
   if (isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator />
-      </View>
-    );
+    return <ThemeLoading />;
   }
 
   return <>{children}</>;
@@ -51,11 +63,7 @@ function RootLayoutNav() {
   const { paperTheme, isDark, isReady } = useAppTheme();
 
   if (!isReady) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator />
-      </View>
-    );
+    return <ThemeLoading />;
   }
 
   return (

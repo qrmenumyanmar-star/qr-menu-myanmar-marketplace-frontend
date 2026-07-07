@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Icon, Modal, Portal, Text, useTheme } from 'react-native-paper';
 
+import { useAppColors } from '@/hooks/use-app-colors';
+
 type DropdownFieldProps = {
   label?: string;
   value: string;
@@ -24,6 +26,7 @@ export function DropdownField({
   sortOptions = true,
 }: DropdownFieldProps) {
   const theme = useTheme();
+  const colors = useAppColors();
   const [open, setOpen] = useState(false);
   const isHeader = variant === 'header';
 
@@ -54,8 +57,8 @@ export function DropdownField({
           compact && styles.compactField,
           isHeader && styles.headerField,
           {
-            borderColor: isHeader ? 'rgba(255,255,255,0.35)' : theme.colors.outline,
-            backgroundColor: isHeader ? 'rgba(255,255,255,0.95)' : theme.colors.surface,
+            borderColor: isHeader ? colors.headerFieldBorder : theme.colors.outline,
+            backgroundColor: isHeader ? colors.headerFieldBg : theme.colors.surface,
           },
         ]}>
         <Text
@@ -64,10 +67,10 @@ export function DropdownField({
             flex: 1,
             color: value
               ? isHeader
-                ? '#0F172A'
+                ? colors.headerFieldText
                 : theme.colors.onSurface
               : isHeader
-                ? '#64748B'
+                ? colors.headerFieldMuted
                 : theme.colors.onSurfaceVariant,
             fontSize: compact ? 13 : 15,
           }}>
@@ -76,7 +79,7 @@ export function DropdownField({
         <Icon
           source="chevron-down"
           size={compact ? 18 : 22}
-          color={isHeader ? '#64748B' : theme.colors.onSurfaceVariant}
+          color={isHeader ? colors.headerFieldMuted : theme.colors.onSurfaceVariant}
         />
       </Pressable>
 

@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { Icon, Text, useTheme } from 'react-native-paper';
 
+import { useAppColors } from '@/hooks/use-app-colors';
+
 type SearchableDropdownFieldProps = {
   label?: string;
   value: string;
@@ -31,6 +33,7 @@ export function SearchableDropdownField({
   sortOptions = true,
 }: SearchableDropdownFieldProps) {
   const theme = useTheme();
+  const colors = useAppColors();
   const isHeader = variant === 'header';
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
@@ -112,14 +115,14 @@ export function SearchableDropdownField({
           compact && styles.compactField,
           isHeader && styles.headerField,
           {
-            borderColor: isHeader ? 'rgba(255,255,255,0.35)' : theme.colors.outline,
-            backgroundColor: isHeader ? 'rgba(255,255,255,0.95)' : theme.colors.surface,
+            borderColor: isHeader ? colors.headerFieldBorder : theme.colors.outline,
+            backgroundColor: isHeader ? colors.headerFieldBg : theme.colors.surface,
           },
         ]}>
         <Icon
           source="magnify"
           size={compact ? 16 : 18}
-          color={isHeader ? '#64748B' : theme.colors.onSurfaceVariant}
+          color={isHeader ? colors.headerFieldMuted : theme.colors.onSurfaceVariant}
         />
         <TextInput
           value={query}
@@ -131,11 +134,11 @@ export function SearchableDropdownField({
           onFocus={handleFocus}
           onBlur={handleBlur}
           placeholder={placeholder}
-          placeholderTextColor={isHeader ? '#64748B' : theme.colors.onSurfaceVariant}
+          placeholderTextColor={isHeader ? colors.headerFieldMuted : theme.colors.onSurfaceVariant}
           style={[
             styles.input,
             {
-              color: isHeader ? '#0F172A' : theme.colors.onSurface,
+              color: isHeader ? colors.headerFieldText : theme.colors.onSurface,
               fontSize: compact ? 13 : 15,
             },
             Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null,
@@ -148,14 +151,14 @@ export function SearchableDropdownField({
             <Icon
               source="close-circle"
               size={compact ? 16 : 18}
-              color={isHeader ? '#64748B' : theme.colors.onSurfaceVariant}
+              color={isHeader ? colors.headerFieldMuted : theme.colors.onSurfaceVariant}
             />
           </Pressable>
         ) : (
           <Icon
             source="chevron-down"
             size={compact ? 18 : 22}
-            color={isHeader ? '#64748B' : theme.colors.onSurfaceVariant}
+            color={isHeader ? colors.headerFieldMuted : theme.colors.onSurfaceVariant}
           />
         )}
       </View>
@@ -165,8 +168,8 @@ export function SearchableDropdownField({
           style={[
             styles.dropdown,
             {
-              backgroundColor: isHeader ? '#ffffff' : theme.colors.surface,
-              borderColor: isHeader ? 'rgba(255,255,255,0.35)' : theme.colors.outline,
+              backgroundColor: isHeader ? colors.headerFieldBg : theme.colors.surface,
+              borderColor: isHeader ? colors.headerFieldBorder : theme.colors.outline,
             },
           ]}>
           <ScrollView
@@ -214,8 +217,8 @@ export function SearchableDropdownField({
             styles.dropdown,
             styles.emptyDropdown,
             {
-              backgroundColor: isHeader ? '#ffffff' : theme.colors.surface,
-              borderColor: isHeader ? 'rgba(255,255,255,0.35)' : theme.colors.outline,
+              backgroundColor: isHeader ? colors.headerFieldBg : theme.colors.surface,
+              borderColor: isHeader ? colors.headerFieldBorder : theme.colors.outline,
             },
           ]}>
           <Text style={{ color: theme.colors.onSurfaceVariant, padding: 12 }}>

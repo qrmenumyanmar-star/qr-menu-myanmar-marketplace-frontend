@@ -15,6 +15,16 @@ export const Palette = {
   headerRipple: 'rgba(255,255,255,0.2)',
 } as const;
 
+const sharedHeaderField = {
+  headerFieldBg: 'rgba(255,255,255,0.95)',
+  headerFieldBorder: 'rgba(255,255,255,0.35)',
+  headerFieldText: '#0F172A',
+  headerFieldMuted: '#64748B',
+  headerChipBg: 'rgba(255,255,255,0.92)',
+  headerChipText: '#334155',
+  headerChipBorder: 'rgba(255,255,255,0.35)',
+} as const;
+
 export const AppColors = {
   light: {
     background: Palette.background,
@@ -31,6 +41,14 @@ export const AppColors = {
     searchText: Palette.onPrimary,
     searchPlaceholder: 'rgba(255,255,255,0.75)',
     searchIcon: 'rgba(255,255,255,0.85)',
+    detailHeaderBg: '#F1F5F9',
+    detailPanelBg: '#EFF6FF',
+    detailAccentDivider: '#BFDBFE',
+    detailShadow: '#0F172A',
+    printOverlay: '#E2E8F0',
+    printPreviewBg: '#CBD5E1',
+    printThermalBg: '#0F172A',
+    ...sharedHeaderField,
   },
   dark: {
     background: '#0B1220',
@@ -47,6 +65,14 @@ export const AppColors = {
     searchText: Palette.onPrimary,
     searchPlaceholder: 'rgba(255,255,255,0.6)',
     searchIcon: 'rgba(255,255,255,0.8)',
+    detailHeaderBg: '#1A2744',
+    detailPanelBg: '#1E3A5F',
+    detailAccentDivider: '#334155',
+    detailShadow: '#000000',
+    printOverlay: '#0B1220',
+    printPreviewBg: '#1E293B',
+    printThermalBg: '#0F172A',
+    ...sharedHeaderField,
   },
 } as const;
 

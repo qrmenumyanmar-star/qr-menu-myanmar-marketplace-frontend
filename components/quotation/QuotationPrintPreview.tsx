@@ -2,6 +2,7 @@ import { createElement, useCallback, useMemo, useRef, type RefObject } from 'rea
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Icon, Text, useTheme } from 'react-native-paper';
 
+import { useAppColors } from '@/hooks/use-app-colors';
 import { useResponsive } from '@/hooks/use-responsive';
 import { QuotationDetail } from '@/types/quotation';
 import {
@@ -25,6 +26,8 @@ function PreviewFrame({
   format: PrintFormat;
   iframeRef: RefObject<HTMLIFrameElement | null>;
 }) {
+  const colors = useAppColors();
+
   if (Platform.OS !== 'web') {
     return (
       <View style={styles.unsupported}>
@@ -43,9 +46,7 @@ function PreviewFrame({
       border: 'none',
       display: 'block',
       background:
-        format === 'thermal'
-          ? '#0f172a'
-          : '#cbd5e1',
+        format === 'thermal' ? colors.printThermalBg : colors.printPreviewBg,
     },
   });
 }
@@ -56,6 +57,7 @@ export function QuotationPrintPreview({
   onClose,
 }: QuotationPrintPreviewProps) {
   const theme = useTheme();
+  const colors = useAppColors();
   const { isMobile } = useResponsive();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const html = useMemo(
@@ -76,7 +78,7 @@ export function QuotationPrintPreview({
   const formatLabel = format === 'a4' ? 'A4' : 'Thermal (80mm)';
 
   return (
-    <View style={styles.overlay}>
+    <View style={[styles.overlay, { backgroundColor: colors.printOverlay }]}>
       <View
         style={[
           styles.toolbar,
@@ -110,16 +112,20 @@ export function QuotationPrintPreview({
           onPress={handlePrint}
           style={({ pressed }) => [
             styles.printBtn,
+            { backgroundColor: theme.colors.primary },
             pressed && { opacity: 0.88 },
           ]}>
-          <Text style={styles.printBtnText}>PRINT DOCUMENT</Text>
+          <Text style={[styles.printBtnText, { color: theme.colors.onPrimary }]}>
+            PRINT DOCUMENT
+          </Text>
         </Pressable>
       </View>
 
       <View
         style={[
           styles.previewArea,
-          format === 'thermal' && styles.previewAreaThermal,
+          { backgroundColor: colors.printPreviewBg },
+          format === 'thermal' && { backgroundColor: colors.printThermalBg },
         ]}>
         <View
           style={[
@@ -141,7 +147,6 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 100,
-    backgroundColor: '#e2e8f0',
   },
   toolbar: {
     flexDirection: 'row',
@@ -173,13 +178,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   printBtn: {
-    backgroundColor: '#0f172a',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 4,
   },
   printBtnText: {
-    color: '#fff',
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.4,
@@ -189,10 +192,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     padding: 16,
-    backgroundColor: '#e2e8f0',
-  },
-  previewAreaThermal: {
-    backgroundColor: '#0f172a',
   },
   previewFrame: {
     flex: 1,

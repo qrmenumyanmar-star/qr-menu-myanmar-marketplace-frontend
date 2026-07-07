@@ -53,8 +53,14 @@ export function Pagination({
           <Chip
             icon="cloud-sync"
             compact
-            style={styles.odooChip}
-            textStyle={styles.odooChipText}>
+            style={[
+              styles.odooChip,
+              { backgroundColor: theme.colors.secondaryContainer },
+            ]}
+            textStyle={[
+              styles.odooChipText,
+              { color: theme.colors.onSecondaryContainer },
+            ]}>
             {centerLabel}
           </Chip>
         </View>
@@ -75,7 +81,7 @@ export function Pagination({
           onPress={() => onChange(page - 1)}
           accessibilityLabel="Previous page"
         />
-        <Text variant="labelLarge" style={styles.pageText}>
+        <Text variant="labelLarge" style={[styles.pageText, { color: theme.colors.onSurface }]}>
           {page} / {pageCount}
         </Text>
         <IconButton
@@ -122,11 +128,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 0,
   },
-  odooChip: {
-    backgroundColor: '#dcfce7',
-  },
+  odooChip: {},
   odooChipText: {
-    color: '#166534',
     fontWeight: '600',
     fontSize: 12,
   },

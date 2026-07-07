@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Icon, IconButton, Modal, Portal, Text, useTheme } from 'react-native-paper';
 
+import { useAppColors } from '@/hooks/use-app-colors';
+
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -57,6 +59,7 @@ export function CalendarField({
   variant = 'default',
 }: CalendarFieldProps) {
   const theme = useTheme();
+  const colors = useAppColors();
   const isHeader = variant === 'header';
   const [open, setOpen] = useState(false);
   const selected = parseISO(value);
@@ -118,24 +121,24 @@ export function CalendarField({
           compact && styles.compactField,
           isHeader && styles.headerField,
           {
-            borderColor: isHeader ? 'rgba(255,255,255,0.35)' : theme.colors.outline,
-            backgroundColor: isHeader ? 'rgba(255,255,255,0.95)' : theme.colors.surface,
+            borderColor: isHeader ? colors.headerFieldBorder : theme.colors.outline,
+            backgroundColor: isHeader ? colors.headerFieldBg : theme.colors.surface,
           },
         ]}>
         <Icon
           source="calendar"
           size={compact ? 18 : 20}
-          color={isHeader ? '#64748B' : theme.colors.onSurfaceVariant}
+          color={isHeader ? colors.headerFieldMuted : theme.colors.onSurfaceVariant}
         />
         <Text
           style={{
             flex: 1,
             color: value
               ? isHeader
-                ? '#0F172A'
+                ? colors.headerFieldText
                 : theme.colors.onSurface
               : isHeader
-                ? '#64748B'
+                ? colors.headerFieldMuted
                 : theme.colors.onSurfaceVariant,
             fontSize: compact ? 13 : 15,
           }}>

@@ -25,6 +25,8 @@ import {
 import { QuotationPrintPreview } from '@/components/quotation/QuotationPrintPreview';
 import { Pagination } from '@/components/ui/Pagination';
 import { useAuth } from '@/contexts/auth-context';
+import { useAppTheme } from '@/contexts/theme-context';
+import { getQuotationStatusColors } from '@/constants/status-colors';
 import {
   HeaderAction,
   useHeaderActions,
@@ -112,25 +114,9 @@ function formatDateTime(value: unknown) {
   return `${dateLabel}, ${hour12}:${minuteStr} ${period}`;
 }
 
-function statusInfo(state: string): { label: string; bg: string; fg: string } {
-  switch (state) {
-    case 'draft':
-      return { label: 'Quotation', bg: '#E2E8F0', fg: '#475569' };
-    case 'sent':
-      return { label: 'Quotation Sent', bg: '#DBEAFE', fg: '#1E40AF' };
-    case 'sale':
-      return { label: 'Sales Order', bg: '#DCFCE7', fg: '#166534' };
-    case 'done':
-      return { label: 'Locked', bg: '#DCFCE7', fg: '#166534' };
-    case 'cancel':
-      return { label: 'Cancelled', bg: '#FEE2E2', fg: '#991B1B' };
-    default:
-      return { label: state || '—', bg: '#E2E8F0', fg: '#475569' };
-  }
-}
-
 function StatusBadge({ status }: { status: string }) {
-  const { label, bg, fg } = statusInfo(status);
+  const { mode } = useAppTheme();
+  const { label, bg, fg } = getQuotationStatusColors(mode, status);
   return (
     <View style={[styles.statusBadge, { backgroundColor: bg }]}>
       <Text

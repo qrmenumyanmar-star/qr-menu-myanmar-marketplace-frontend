@@ -6,6 +6,9 @@ import {
   CONTACT_STATUS_FILTERS,
   ContactFilters,
 } from '@/components/contact/contact-filter-utils';
+import { getFilterStatusColors } from '@/constants/status-colors';
+import { useAppTheme } from '@/contexts/theme-context';
+import { useAppColors } from '@/hooks/use-app-colors';
 import { CalendarField } from '@/components/ui/CalendarField';
 import { DropdownField } from '@/components/ui/DropdownField';
 import { SearchableDropdownField } from '@/components/ui/SearchableDropdownField';
@@ -30,6 +33,9 @@ export function ContactFilterBar({
   townships,
   onChange,
 }: ContactFilterBarProps) {
+  const colors = useAppColors();
+  const { mode } = useAppTheme();
+
   const toggleStatus = (key: string) => {
     const next = filters.statuses.includes(key)
       ? filters.statuses.filter(item => item !== key)
@@ -93,6 +99,10 @@ export function ContactFilterBar({
         style={styles.chipsScroll}>
         {CONTACT_STATUS_FILTERS.map(status => {
           const selected = filters.statuses.includes(status.key);
+          const statusColors = getFilterStatusColors(mode, status.key, {
+            bg: status.bg,
+            fg: status.fg,
+          });
           return (
             <Chip
               key={status.key}
@@ -102,13 +112,13 @@ export function ContactFilterBar({
               style={[
                 styles.chip,
                 {
-                  backgroundColor: selected ? status.bg : 'rgba(255,255,255,0.92)',
-                  borderColor: selected ? status.fg : 'rgba(255,255,255,0.35)',
+                  backgroundColor: selected ? statusColors.bg : colors.headerChipBg,
+                  borderColor: selected ? statusColors.fg : colors.headerChipBorder,
                 },
               ]}
               textStyle={[
                 styles.chipText,
-                { color: selected ? status.fg : '#334155' },
+                { color: selected ? statusColors.fg : colors.headerChipText },
               ]}>
               {status.label}
             </Chip>
