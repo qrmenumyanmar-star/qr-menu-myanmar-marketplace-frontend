@@ -8,6 +8,23 @@ const MONTHS = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
+function statusLabel(state: string): string {
+  switch (state) {
+    case 'draft':
+      return 'Quotation';
+    case 'sent':
+      return 'Quotation Sent';
+    case 'sale':
+      return 'Sales Order';
+    case 'done':
+      return 'Locked';
+    case 'cancel':
+      return 'Cancelled';
+    default:
+      return state || '—';
+  }
+}
+
 function formatMoney(value: unknown): string {
   const num = Number(value ?? 0);
   const safe = Number.isFinite(num) ? num : 0;
@@ -79,12 +96,22 @@ export function quotationExportFilename(
 /** Shared table rows for Excel and PDF export. */
 export function buildQuotationSummaryRows(quotations: Quotation[]): Cell[][] {
   return [
-    ['Number', 'Creation Date', 'Customer', 'Total', 'Payment Method', 'Remark', 'Sign'],
+    [
+      'Number',
+      'Creation Date',
+      'Customer',
+      'Total',
+      'Status',
+      'Payment Method',
+      'Remark',
+      'Sign',
+    ],
     ...quotations.map(quotation => [
       quotation.number,
       formatDateTime(quotation.createDate),
       quotation.customer,
       formatMoney(quotation.total),
+      statusLabel(quotation.status),
       quotation.paymentMethod?.trim() || '—',
       '',
       '',
@@ -151,8 +178,8 @@ export function buildQuotationSummaryPrintHtml(rows: Cell[][]): string {
       background: #f8fafc;
     }
     td:nth-child(4) { text-align: right; }
-    td:nth-child(6),
-    td:nth-child(7) { min-width: 100px; }
+    td:nth-child(7),
+    td:nth-child(8) { min-width: 100px; }
   </style>
 </head>
 <body>

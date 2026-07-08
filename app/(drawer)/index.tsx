@@ -58,10 +58,11 @@ type Column = {
 
 const COLUMNS: Column[] = [
   { key: 'number', label: 'Number', flex: 1.4 },
-  { key: 'createDate', label: 'Creation Date', flex: 1.6 },
-  { key: 'customer', label: 'Customer', flex: 2.4 },
-  { key: 'total', label: 'Total', flex: 1.6, align: 'right' },
-  { key: 'paymentMethod', label: 'Payment Method', flex: 1.8 },
+  { key: 'createDate', label: 'Creation Date', flex: 1.5 },
+  { key: 'customer', label: 'Customer', flex: 2.2 },
+  { key: 'total', label: 'Total', flex: 1.5, align: 'right' },
+  { key: 'status', label: 'Status', flex: 1.4 },
+  { key: 'paymentMethod', label: 'Payment Method', flex: 1.6 },
 ];
 
 const MONTHS = [
@@ -112,6 +113,26 @@ function formatDateTime(value: unknown) {
   const minuteStr = String(minutes).padStart(2, '0');
 
   return `${dateLabel}, ${hour12}:${minuteStr} ${period}`;
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const { mode } = useAppTheme();
+  const { label, bg, fg } = getQuotationStatusColors(mode, status);
+
+  if (!status) {
+    return <Text style={{ opacity: 0.5 }}>—</Text>;
+  }
+
+  return (
+    <View style={[styles.statusBadge, { backgroundColor: bg }]}>
+      <Text
+        variant="labelSmall"
+        numberOfLines={1}
+        style={{ color: fg, fontWeight: '600' }}>
+        {label}
+      </Text>
+    </View>
+  );
 }
 
 function cellText(item: Quotation, key: string): string {
@@ -171,6 +192,14 @@ function QuotationRow({
         />
       </View>
       {COLUMNS.map(col => {
+        if (col.key === 'status') {
+          return (
+            <View key={col.key} style={[styles.cell, { flex: col.flex }]}>
+              <StatusBadge status={item.status} />
+            </View>
+          );
+        }
+
         const text = cellText(item, col.key);
         const isNumber = col.key === 'number';
         return (
@@ -259,17 +288,18 @@ function QuotationCard({
           <Text variant="titleMedium" style={styles.cardNumber} numberOfLines={1}>
             {item.number}
           </Text>
-          <Text
-            variant="labelSmall"
-            numberOfLines={1}
-            style={{ color: theme.colors.onSurfaceVariant, maxWidth: '45%' }}>
-            {item.paymentMethod || '—'}
-          </Text>
+          <StatusBadge status={item.status} />
         </View>
 
         <Text variant="bodyMedium" numberOfLines={1}>
           {item.customer || '—'}
         </Text>
+
+        {item.paymentMethod ? (
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }} numberOfLines={1}>
+            {item.paymentMethod}
+          </Text>
+        ) : null}
 
         <View style={styles.cardFooter}>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
@@ -884,6 +914,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     transform: [{ scale: 0.8 }],
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    maxWidth: '100%',
   },
   listContent: {
     paddingHorizontal: 16,
