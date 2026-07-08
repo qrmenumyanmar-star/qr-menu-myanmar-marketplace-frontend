@@ -1,6 +1,6 @@
 import { apiRequest } from '@/services/api';
 import { QuotationDraft } from '@/components/quotation/QuotationBuilder';
-import { Quotation, QuotationDetail } from '@/types/quotation';
+import { PaymentMethod, Quotation, QuotationDetail } from '@/types/quotation';
 
 type QuotationsResponse = {
   data: Quotation[];
@@ -12,6 +12,10 @@ type QuotationDetailResponse = {
 
 type CreateQuotationResponse = {
   data: Quotation;
+};
+
+type PaymentMethodsResponse = {
+  data: PaymentMethod[];
 };
 
 export async function fetchQuotations(token: string): Promise<Quotation[]> {
@@ -29,6 +33,14 @@ export async function fetchQuotationDetail(
   return response.data;
 }
 
+export async function fetchPaymentMethods(token: string): Promise<PaymentMethod[]> {
+  const response = await apiRequest<PaymentMethodsResponse>(
+    '/quotations/payment-methods',
+    { token },
+  );
+  return response.data;
+}
+
 export async function createQuotation(
   token: string,
   draft: QuotationDraft,
@@ -41,6 +53,7 @@ export async function createQuotation(
       deliveryNote: draft.deliveryNote,
       preferredDeliveryDate: draft.preferredDeliveryDate,
       phoneNumber: draft.phoneNumber,
+      paymentMethodLineId: draft.paymentMethodLineId,
       lines: draft.lines.map(line => ({
         productId: line.product.id,
         quantity: line.qty,

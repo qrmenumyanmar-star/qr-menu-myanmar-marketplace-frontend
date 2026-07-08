@@ -19,11 +19,13 @@ import {
 
 import { ProductThumb } from '@/components/ui/ProductThumb';
 import { CalendarField } from '@/components/ui/CalendarField';
+import { DropdownField } from '@/components/ui/DropdownField';
 import { useAuth } from '@/contexts/auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import { searchContactsByPhone } from '@/services/customers';
 import { Customer, ContactSearchResult } from '@/types/customer';
 import { Product } from '@/types/product';
+import { PaymentMethod } from '@/types/quotation';
 import { validateMyanmarPhone } from '@/utils/myanmar-phone';
 
 export type OrderLine = {
@@ -38,6 +40,7 @@ export type QuotationDraft = {
   phoneNumber: string;
   deliveryNote: string;
   preferredDeliveryDate: string;
+  paymentMethodLineId?: string;
   lines: OrderLine[];
   total: number;
 };
@@ -59,22 +62,29 @@ function lineAmount(line: OrderLine): number {
 function OrderLineRow({
   line,
   onQtyChange,
+  onUnitPriceChange,
   onDiscountChange,
   onRemove,
 }: {
   line: OrderLine;
   onQtyChange: (productId: string, qty: number) => void;
+  onUnitPriceChange: (productId: string, unitPrice: number) => void;
   onDiscountChange: (productId: string, discountPercent: number) => void;
   onRemove: (productId: string) => void;
 }) {
   const theme = useTheme();
   const outline = theme.colors.outlineVariant ?? theme.colors.outline;
   const [qtyText, setQtyText] = useState(String(line.qty));
+  const [priceText, setPriceText] = useState(String(line.unitPrice));
   const [discText, setDiscText] = useState(String(line.discountPercent));
 
   useEffect(() => {
     setQtyText(String(line.qty));
   }, [line.qty]);
+
+  useEffect(() => {
+    setPriceText(String(line.unitPrice));
+  }, [line.unitPrice]);
 
   useEffect(() => {
     setDiscText(String(line.discountPercent));
@@ -87,6 +97,15 @@ function OrderLineRow({
       return;
     }
     onQtyChange(line.product.id, parsed);
+  };
+
+  const commitPrice = () => {
+    const parsed = parseFloat(priceText.replace(/,/g, ''));
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      setPriceText(String(line.unitPrice));
+      return;
+    }
+    onUnitPriceChange(line.product.id, parsed);
   };
 
   const commitDisc = () => {
@@ -111,9 +130,17 @@ function OrderLineRow({
     <View style={[styles.orderLineRow, { borderBottomColor: outline }]}>
       <View style={styles.orderProductCell}>
         <ProductThumb uri={line.product.image} size={40} />
-        <Text numberOfLines={2} style={styles.orderProductName}>
-          {line.product.name}
-        </Text>
+        <View style={styles.flex1}>
+          <Text numberOfLines={2} style={styles.orderProductName}>
+            {line.product.name}
+          </Text>
+          <Text
+            variant="labelSmall"
+            numberOfLines={1}
+            style={{ color: theme.colors.onSurfaceVariant }}>
+            {line.product.unit || 'Units'}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.qtyStepper}>
@@ -144,12 +171,17 @@ function OrderLineRow({
         />
       </View>
 
-      <Text
-        variant="bodySmall"
-        numberOfLines={1}
-        style={styles.orderUnitCell}>
-        {line.product.unit || 'Units'}
-      </Text>
+      <TextInput
+        mode="outlined"
+        dense
+        value={priceText}
+        onChangeText={setPriceText}
+        onBlur={commitPrice}
+        onSubmitEditing={commitPrice}
+        keyboardType="decimal-pad"
+        style={styles.orderPriceInput}
+        contentStyle={styles.orderInputContent}
+      />
 
       <TextInput
         mode="outlined"
@@ -186,6 +218,7 @@ function customerAddress(customer: Customer): string {
 type QuotationBuilderProps = {
   customers: Customer[];
   products: Product[];
+  paymentMethods: PaymentMethod[];
   loading: boolean;
   error: string;
   onDiscard: () => void;
@@ -197,6 +230,7 @@ type QuotationBuilderProps = {
 export function QuotationBuilder({
   customers,
   products,
+  paymentMethods,
   loading,
   error,
   onDiscard,
@@ -218,6 +252,8 @@ export function QuotationBuilder({
   const [customerSearch, setCustomerSearch] = useState('');
   const [deliveryNote, setDeliveryNote] = useState('');
   const [preferredDeliveryDate, setPreferredDeliveryDate] = useState('');
+  const [paymentMethodLineId, setPaymentMethodLineId] = useState('');
+  const [contactError, setContactError] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [productView, setProductView] = useState<'list' | 'card'>('list');
   const [category, setCategory] = useState('');
@@ -429,16 +465,28 @@ export function QuotationBuilder({
     );
   };
 
+  const setUnitPrice = (productId: string, unitPrice: number) => {
+    setLines(prev =>
+      prev.map(line =>
+        line.product.id === productId ? { ...line, unitPrice } : line,
+      ),
+    );
+  };
+
   const removeLine = (productId: string) => {
     setLines(prev => prev.filter(line => line.product.id !== productId));
   };
 
   const handleSave = () => {
+    setContactError('');
+
     if (!customer) {
+      setContactError('Please select a customer.');
       setTab('contact');
       return;
     }
     if (lines.length === 0) {
+      setContactError('Add at least one product before saving.');
       setTab('products');
       return;
     }
@@ -454,20 +502,42 @@ export function QuotationBuilder({
       return;
     }
 
+    if (!preferredDeliveryDate.trim()) {
+      setContactError('Preferred delivery date is required.');
+      setTab('contact');
+      return;
+    }
+
+    if (!deliveryNote.trim()) {
+      setContactError('Delivery notes are required.');
+      setTab('contact');
+      return;
+    }
+
     onSave({
       customer,
       phoneNumber: normalizedPhone,
       deliveryNote,
       preferredDeliveryDate,
+      paymentMethodLineId: paymentMethodLineId || undefined,
       lines,
       total,
     });
   };
 
   const canSave =
-    !!customer && lines.length > 0 && !saving && !phoneError && !!phone.trim();
+    !!customer &&
+    lines.length > 0 &&
+    !saving &&
+    !phoneError &&
+    !!phone.trim() &&
+    !!preferredDeliveryDate.trim() &&
+    !!deliveryNote.trim();
 
   const lineCount = lines.reduce((sum, line) => sum + line.qty, 0);
+
+  const paymentMethodLabel =
+    paymentMethods.find(method => method.id === paymentMethodLineId)?.name ?? '';
 
   const contactPanel = (
     <View style={styles.panelGap}>
@@ -597,11 +667,34 @@ export function QuotationBuilder({
       ) : null}
 
       <View>
+        <DropdownField
+          label="Payment Method"
+          placeholder="Select payment method"
+          value={paymentMethodLabel}
+          options={paymentMethods.map(method => method.name)}
+          onChange={label => {
+            const match = paymentMethods.find(method => method.name === label);
+            setPaymentMethodLineId(match?.id ?? '');
+          }}
+          sortOptions={false}
+        />
+        {paymentMethods.length === 0 ? (
+          <HelperText type="info">
+            Payment methods could not be loaded. Restart the backend with the latest
+            update, then open New Quotation again.
+          </HelperText>
+        ) : null}
+      </View>
+
+      <View>
         <CalendarField
-          label="Delivery Date"
+          label="Preferred Delivery Date *"
           value={preferredDeliveryDate}
-          onChange={setPreferredDeliveryDate}
-          placeholder="Select delivery date"
+          onChange={value => {
+            setPreferredDeliveryDate(value);
+            setContactError('');
+          }}
+          placeholder="Select preferred delivery date"
         />
       </View>
 
@@ -609,17 +702,23 @@ export function QuotationBuilder({
         <Text
           variant="labelMedium"
           style={[styles.fieldLabel, { color: theme.colors.onSurfaceVariant }]}>
-          Delivery Note
+          Delivery Notes *
         </Text>
         <TextInput
           mode="outlined"
           placeholder="Delivery instructions..."
           value={deliveryNote}
-          onChangeText={setDeliveryNote}
+          onChangeText={value => {
+            setDeliveryNote(value);
+            setContactError('');
+          }}
           multiline
           numberOfLines={3}
+          error={!!contactError && !deliveryNote.trim()}
         />
       </View>
+
+      {contactError ? <HelperText type="error">{contactError}</HelperText> : null}
     </View>
   );
 
@@ -835,8 +934,8 @@ export function QuotationBuilder({
           <Text variant="labelSmall" style={[styles.orderHeaderQty, styles.orderHeaderText]}>
             Quantity
           </Text>
-          <Text variant="labelSmall" style={[styles.orderHeaderUnit, styles.orderHeaderText]}>
-            Unit
+          <Text variant="labelSmall" style={[styles.orderHeaderPrice, styles.orderHeaderText]}>
+            Unit Price
           </Text>
           <Text variant="labelSmall" style={[styles.orderHeaderDisc, styles.orderHeaderText]}>
             Disc.%
@@ -874,6 +973,7 @@ export function QuotationBuilder({
               key={line.product.id}
               line={line}
               onQtyChange={setQty}
+              onUnitPriceChange={setUnitPrice}
               onDiscountChange={setDiscount}
               onRemove={removeLine}
             />
@@ -1268,9 +1368,9 @@ const styles = StyleSheet.create({
     width: 128,
     textAlign: 'center',
   },
-  orderHeaderUnit: {
-    width: 56,
-    textAlign: 'center',
+  orderHeaderPrice: {
+    width: 96,
+    textAlign: 'right',
   },
   orderHeaderDisc: {
     width: 72,
@@ -1319,10 +1419,9 @@ const styles = StyleSheet.create({
     height: 36,
     minWidth: 48,
   },
-  orderUnitCell: {
-    width: 56,
-    textAlign: 'center',
-    opacity: 0.85,
+  orderPriceInput: {
+    width: 96,
+    height: 36,
   },
   orderDiscInput: {
     width: 72,

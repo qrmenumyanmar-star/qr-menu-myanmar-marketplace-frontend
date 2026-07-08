@@ -37,10 +37,10 @@ import {
 import { useResponsive } from '@/hooks/use-responsive';
 import { fetchCustomers } from '@/services/customers';
 import { fetchProducts } from '@/services/products';
-import { fetchQuotationDetail, fetchQuotations, createQuotation } from '@/services/quotations';
+import { fetchQuotationDetail, fetchQuotations, createQuotation, fetchPaymentMethods } from '@/services/quotations';
 import { Customer } from '@/types/customer';
 import { Product } from '@/types/product';
-import { Quotation, QuotationDetail } from '@/types/quotation';
+import { Quotation, QuotationDetail, PaymentMethod } from '@/types/quotation';
 import { exportSelectedQuotations } from '@/utils/export-quotation-excel';
 import { exportSelectedQuotationsPdf } from '@/utils/export-quotation-pdf';
 import { PrintFormat } from '@/utils/print-quotation';
@@ -61,7 +61,7 @@ const COLUMNS: Column[] = [
   { key: 'createDate', label: 'Creation Date', flex: 1.6 },
   { key: 'customer', label: 'Customer', flex: 2.4 },
   { key: 'total', label: 'Total', flex: 1.6, align: 'right' },
-  { key: 'status', label: 'Status', flex: 1.6 },
+  { key: 'paymentMethod', label: 'Payment Method', flex: 1.8 },
 ];
 
 const MONTHS = [
@@ -114,21 +114,6 @@ function formatDateTime(value: unknown) {
   return `${dateLabel}, ${hour12}:${minuteStr} ${period}`;
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const { mode } = useAppTheme();
-  const { label, bg, fg } = getQuotationStatusColors(mode, status);
-  return (
-    <View style={[styles.statusBadge, { backgroundColor: bg }]}>
-      <Text
-        variant="labelSmall"
-        numberOfLines={1}
-        style={{ color: fg, fontWeight: '600' }}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
 function cellText(item: Quotation, key: string): string {
   switch (key) {
     case 'number':
@@ -139,6 +124,8 @@ function cellText(item: Quotation, key: string): string {
       return item.customer;
     case 'total':
       return formatMoney(item.total);
+    case 'paymentMethod':
+      return item.paymentMethod;
     default:
       return '';
   }
@@ -184,14 +171,6 @@ function QuotationRow({
         />
       </View>
       {COLUMNS.map(col => {
-        if (col.key === 'status') {
-          return (
-            <View key={col.key} style={[styles.cell, { flex: col.flex }]}>
-              <StatusBadge status={item.status} />
-            </View>
-          );
-        }
-
         const text = cellText(item, col.key);
         const isNumber = col.key === 'number';
         return (
@@ -280,7 +259,12 @@ function QuotationCard({
           <Text variant="titleMedium" style={styles.cardNumber} numberOfLines={1}>
             {item.number}
           </Text>
-          <StatusBadge status={item.status} />
+          <Text
+            variant="labelSmall"
+            numberOfLines={1}
+            style={{ color: theme.colors.onSurfaceVariant, maxWidth: '45%' }}>
+            {item.paymentMethod || '—'}
+          </Text>
         </View>
 
         <Text variant="bodyMedium" numberOfLines={1}>
@@ -322,6 +306,7 @@ export default function QuotationScreen() {
   const [builderSaving, setBuilderSaving] = useState(false);
   const [builderCustomers, setBuilderCustomers] = useState<Customer[]>([]);
   const [builderProducts, setBuilderProducts] = useState<Product[]>([]);
+  const [builderPaymentMethods, setBuilderPaymentMethods] = useState<PaymentMethod[]>([]);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detail, setDetail] = useState<QuotationDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -402,6 +387,15 @@ export default function QuotationScreen() {
         ]);
         setBuilderCustomers(customerData);
         setBuilderProducts(productData);
+
+        try {
+          const paymentMethodData = await fetchPaymentMethods(session.token);
+          setBuilderPaymentMethods(paymentMethodData);
+        } catch {
+          // Builder still works if payment-methods endpoint is unavailable
+          // (e.g. backend not yet deployed with the new route).
+          setBuilderPaymentMethods([]);
+        }
       } catch (err) {
         setBuilderError(
           err instanceof Error ? err.message : 'Failed to load data from Odoo.',
@@ -719,6 +713,7 @@ export default function QuotationScreen() {
         <QuotationBuilder
           customers={builderCustomers}
           products={builderProducts}
+          paymentMethods={builderPaymentMethods}
           loading={builderLoading}
           error={builderError}
           onDiscard={closeBuilder}
@@ -889,13 +884,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     transform: [{ scale: 0.8 }],
-  },
-  statusBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    maxWidth: '100%',
   },
   listContent: {
     paddingHorizontal: 16,

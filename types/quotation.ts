@@ -1,3 +1,8 @@
+export type PaymentMethod = {
+  id: string;
+  name: string;
+};
+
 export type Quotation = {
   id: string;
   number: string;
@@ -5,6 +10,7 @@ export type Quotation = {
   customer: string;
   total: number;
   status: string;
+  paymentMethod: string;
 };
 
 export type QuotationLine = {

@@ -590,6 +590,10 @@ function buildThermalHtml(detail: QuotationDetail): string {
       <span><strong>DELIVERY DATE:</strong> ${formatDate(detail.preferredDeliveryDate)}</span>
     </div>
 
+    <div class="field">
+      <strong>PAYMENT METHOD:</strong> ${displayValue(detail.paymentMethod)}
+    </div>
+
     <div class="delivery-address">
       <span class="field-label">DELIVERY ADDRESS:</span><br />
       ${displayThermalDeliveryAddress(detail.deliveryAddress)}
