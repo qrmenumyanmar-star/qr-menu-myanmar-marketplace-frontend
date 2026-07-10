@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
@@ -20,7 +20,9 @@ import {
 import { ProductThumb } from '@/components/ui/ProductThumb';
 import { CalendarField } from '@/components/ui/CalendarField';
 import { DropdownField } from '@/components/ui/DropdownField';
+import { VoiceInputButton } from '@/components/ui/VoiceInputButton';
 import { useAuth } from '@/contexts/auth-context';
+import { useMyanmarSpeechToText } from '@/hooks/use-myanmar-speech-to-text';
 import { useResponsive } from '@/hooks/use-responsive';
 import { searchContactsByPhone } from '@/services/customers';
 import { Customer, ContactSearchResult } from '@/types/customer';
@@ -254,10 +256,47 @@ export function QuotationBuilder({
   const [preferredDeliveryDate, setPreferredDeliveryDate] = useState('');
   const [paymentMethodLineId, setPaymentMethodLineId] = useState('');
   const [contactError, setContactError] = useState('');
+  const [speechError, setSpeechError] = useState('');
+  const [interimTranscript, setInterimTranscript] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [productView, setProductView] = useState<'list' | 'card'>('list');
   const [category, setCategory] = useState('');
   const [lines, setLines] = useState<OrderLine[]>([]);
+
+  const handleVoiceTranscript = useCallback((text: string, isFinal: boolean) => {
+    if (!text) {
+      return;
+    }
+
+    setSpeechError('');
+    setContactError('');
+
+    if (isFinal) {
+      setDeliveryNote(previous =>
+        previous.trim() ? `${previous.trim()} ${text}` : text,
+      );
+      setInterimTranscript('');
+      return;
+    }
+
+    setInterimTranscript(text);
+  }, []);
+
+  const {
+    isListening,
+    isSupported: isVoiceSupported,
+    toggle: toggleVoiceInput,
+    stop: stopVoiceInput,
+  } = useMyanmarSpeechToText({
+    onTranscript: handleVoiceTranscript,
+    onError: setSpeechError,
+  });
+
+  useEffect(() => {
+    return () => {
+      stopVoiceInput();
+    };
+  }, [stopVoiceInput]);
 
   const selectCustomer = (next: Customer | null) => {
     setCustomer(next);
@@ -699,23 +738,47 @@ export function QuotationBuilder({
       </View>
 
       <View>
-        <Text
-          variant="labelMedium"
-          style={[styles.fieldLabel, { color: theme.colors.onSurfaceVariant }]}>
-          Delivery Notes *
-        </Text>
+        <View style={styles.fieldLabelRow}>
+          <Text
+            variant="labelMedium"
+            style={{ color: theme.colors.onSurfaceVariant }}>
+            Delivery Notes *
+          </Text>
+          <VoiceInputButton
+            listening={isListening}
+            supported={isVoiceSupported}
+            onPress={toggleVoiceInput}
+          />
+        </View>
         <TextInput
           mode="outlined"
           placeholder="Delivery instructions..."
-          value={deliveryNote}
+          value={
+            interimTranscript && isListening
+              ? deliveryNote.trim()
+                ? `${deliveryNote.trim()} ${interimTranscript}`
+                : interimTranscript
+              : deliveryNote
+          }
           onChangeText={value => {
             setDeliveryNote(value);
+            setInterimTranscript('');
+            setSpeechError('');
             setContactError('');
+            if (isListening) {
+              stopVoiceInput();
+            }
           }}
           multiline
           numberOfLines={3}
           error={!!contactError && !deliveryNote.trim()}
         />
+        {isListening ? (
+          <HelperText type="info">
+            Listening for Myanmar speech… Tap the microphone to stop.
+          </HelperText>
+        ) : null}
+        {speechError ? <HelperText type="error">{speechError}</HelperText> : null}
       </View>
 
       {contactError ? <HelperText type="error">{contactError}</HelperText> : null}
@@ -1197,6 +1260,12 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   fieldLabel: {
+    marginBottom: 6,
+  },
+  fieldLabelRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 6,
   },
   checkPhoneButton: {
