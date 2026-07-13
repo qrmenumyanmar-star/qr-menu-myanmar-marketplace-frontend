@@ -50,6 +50,8 @@ export async function createQuotation(
     token,
     body: {
       customerId: draft.customer.id,
+      shippingPartnerId: draft.shippingPartnerId || draft.customer.id,
+      salePersonName: draft.salePersonName,
       deliveryNote: draft.deliveryNote,
       preferredDeliveryDate: draft.preferredDeliveryDate,
       phoneNumber: draft.phoneNumber,

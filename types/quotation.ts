@@ -15,6 +15,7 @@ export type Quotation = {
 
 export type QuotationLine = {
   id: string;
+  productId: string;
   product: string;
   quantity: number;
   unit: string;
@@ -23,7 +24,27 @@ export type QuotationLine = {
   amount: number;
 };
 
+export type QuotationReorderLine = {
+  lineId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  discountPercent: number;
+};
+
+export type QuotationReorderSeed = {
+  customerId?: string;
+  phoneNumber?: string;
+  deliveryNote?: string;
+  preferredDeliveryDate?: string;
+  paymentMethodLineId?: string;
+  lines: QuotationReorderLine[];
+};
+
 export type QuotationDetail = Quotation & {
+  customerId: string;
+  paymentMethodLineId: string;
   deliveryAddress: string;
   invoiceAddress: string;
   expiration: string;

@@ -13,6 +13,9 @@ type DropdownFieldProps = {
   compact?: boolean;
   variant?: 'default' | 'header';
   sortOptions?: boolean;
+  /** When false, hides the top “All” clear option. Default true. */
+  showClearOption?: boolean;
+  clearLabel?: string;
 };
 
 export function DropdownField({
@@ -24,6 +27,8 @@ export function DropdownField({
   compact = false,
   variant = 'default',
   sortOptions = true,
+  showClearOption = true,
+  clearLabel = 'All',
 }: DropdownFieldProps) {
   const theme = useTheme();
   const colors = useAppColors();
@@ -95,14 +100,16 @@ export function DropdownField({
             {label || placeholder}
           </Text>
           <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
-            <Pressable
-              onPress={() => pick('')}
-              style={({ pressed }) => [
-                styles.option,
-                pressed && { backgroundColor: theme.colors.surfaceVariant },
-              ]}>
-              <Text style={{ color: theme.colors.onSurfaceVariant }}>All</Text>
-            </Pressable>
+            {showClearOption ? (
+              <Pressable
+                onPress={() => pick('')}
+                style={({ pressed }) => [
+                  styles.option,
+                  pressed && { backgroundColor: theme.colors.surfaceVariant },
+                ]}>
+                <Text style={{ color: theme.colors.onSurfaceVariant }}>{clearLabel}</Text>
+              </Pressable>
+            ) : null}
             {sortedOptions.map(option => (
               <Pressable
                 key={option}

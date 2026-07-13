@@ -1,10 +1,10 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Icon, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Button, Checkbox, Icon, Text, useTheme } from 'react-native-paper';
 
 import { useDetailTheme } from '@/hooks/use-detail-theme';
 import { useResponsive } from '@/hooks/use-responsive';
-import { QuotationDetail, QuotationLine } from '@/types/quotation';
+import { QuotationDetail, QuotationLine, QuotationReorderSeed } from '@/types/quotation';
 
 type DetailTab = 'lines' | 'other';
 
@@ -135,45 +135,92 @@ function MetaField({
 function DetailTabs({
   tab,
   onChange,
+  lineCount,
+  reorderMode,
+  selectedCount,
+  onReorderPress,
+  onConfirmReorder,
+  onCancelReorder,
 }: {
   tab: DetailTab;
   onChange: (tab: DetailTab) => void;
+  lineCount: number;
+  reorderMode: boolean;
+  selectedCount: number;
+  onReorderPress: () => void;
+  onConfirmReorder: () => void;
+  onCancelReorder: () => void;
 }) {
   const theme = useTheme();
   const detail = useDetailTheme();
 
   return (
-    <View style={[styles.tabBar, { borderBottomColor: detail.border }]}>
-      {(
-        [
-          { key: 'lines' as const, label: 'Order Lines' },
-          { key: 'other' as const, label: 'Other Info' },
-        ] as const
-      ).map(item => {
-        const active = tab === item.key;
-        return (
-          <Pressable
-            key={item.key}
-            onPress={() => onChange(item.key)}
-            style={[styles.tab, active && { borderBottomColor: theme.colors.primary }]}>
-            <Text
-              style={[
-                styles.tabText,
-                {
-                  color: active ? theme.colors.primary : detail.label,
-                  fontWeight: active ? '700' : '600',
-                },
-              ]}>
-              {item.label.toUpperCase()}
-            </Text>
-          </Pressable>
-        );
-      })}
+    <View style={[styles.tabBarRow, { borderBottomColor: detail.border }]}>
+      <View style={styles.tabBar}>
+        {(
+          [
+            { key: 'lines' as const, label: 'Order Lines' },
+            { key: 'other' as const, label: 'Other Info' },
+          ] as const
+        ).map(item => {
+          const active = tab === item.key;
+          return (
+            <Pressable
+              key={item.key}
+              onPress={() => onChange(item.key)}
+              style={[styles.tab, active && { borderBottomColor: theme.colors.primary }]}>
+              <Text
+                style={[
+                  styles.tabText,
+                  {
+                    color: active ? theme.colors.primary : detail.label,
+                    fontWeight: active ? '700' : '600',
+                  },
+                ]}>
+                {item.label.toUpperCase()}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {tab === 'lines' && lineCount > 0 ? (
+        <View style={styles.tabActions}>
+          {reorderMode ? (
+            <>
+              <Button compact mode="text" onPress={onCancelReorder}>
+                Cancel
+              </Button>
+              <Button
+                compact
+                mode="text"
+                disabled={selectedCount === 0}
+                onPress={onConfirmReorder}>
+                New Quotation ({selectedCount})
+              </Button>
+            </>
+          ) : (
+            <Button compact mode="outlined" icon="refresh" onPress={onReorderPress}>
+              Reorder
+            </Button>
+          )}
+        </View>
+      ) : null}
     </View>
   );
 }
 
-function LinesTable({ lines }: { lines: QuotationLine[] }) {
+function LinesTable({
+  lines,
+  selectionMode = false,
+  selectedIds,
+  onToggleLine,
+}: {
+  lines: QuotationLine[];
+  selectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onToggleLine?: (lineId: string) => void;
+}) {
   const theme = useTheme();
   const detail = useDetailTheme();
 
@@ -187,6 +234,7 @@ function LinesTable({ lines }: { lines: QuotationLine[] }) {
             borderBottomColor: detail.border,
           },
         ]}>
+        {selectionMode ? <View style={styles.lineColSelect} /> : null}
         <View style={styles.lineColProduct}>
           <Text style={[styles.headerText, { color: detail.label }]}>PRODUCT</Text>
         </View>
@@ -222,7 +270,9 @@ function LinesTable({ lines }: { lines: QuotationLine[] }) {
         </View>
       </View>
 
-      {lines.map(line => (
+      {lines.map(line => {
+        const selected = selectedIds?.has(line.id) ?? false;
+        return (
         <View
           key={line.id}
           style={[
@@ -231,7 +281,16 @@ function LinesTable({ lines }: { lines: QuotationLine[] }) {
               backgroundColor: detail.surface,
               borderBottomColor: detail.border,
             },
+            selectionMode && !selected ? styles.lineRowUnselected : null,
           ]}>
+          {selectionMode ? (
+            <View style={styles.lineColSelect}>
+              <Checkbox
+                status={selected ? 'checked' : 'unchecked'}
+                onPress={() => onToggleLine?.(line.id)}
+              />
+            </View>
+          ) : null}
           <View style={styles.lineColProduct}>
             <Text
               style={[styles.lineProductText, { color: theme.colors.primary }]}
@@ -285,7 +344,8 @@ function LinesTable({ lines }: { lines: QuotationLine[] }) {
             </Text>
           </View>
         </View>
-      ))}
+        );
+      })}
     </View>
   );
 }
@@ -335,18 +395,78 @@ type QuotationDetailViewProps = {
   loading: boolean;
   error: string;
   onBack: () => void;
+  onReorder?: (seed: QuotationReorderSeed) => void;
 };
 
 export function QuotationDetailView({
   detail,
   loading,
   error,
+  onReorder,
 }: QuotationDetailViewProps) {
   const theme = useTheme();
   const detailTheme = useDetailTheme();
   const { width } = useResponsive();
   const isMobile = width < 768;
   const [tab, setTab] = useState<DetailTab>('lines');
+  const [reorderMode, setReorderMode] = useState(false);
+  const [selectedLineIds, setSelectedLineIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setReorderMode(false);
+    setSelectedLineIds(new Set());
+  }, [detail?.id]);
+
+  const handleTabChange = (next: DetailTab) => {
+    setTab(next);
+    if (next !== 'lines') {
+      setReorderMode(false);
+      setSelectedLineIds(new Set());
+    }
+  };
+
+  const handleReorderPress = () => {
+    if (!detail?.lines.length) {
+      return;
+    }
+    setReorderMode(true);
+    setSelectedLineIds(new Set(detail.lines.map(line => line.id)));
+  };
+
+  const handleToggleLine = (lineId: string) => {
+    setSelectedLineIds(prev => {
+      const next = new Set(prev);
+      if (next.has(lineId)) {
+        next.delete(lineId);
+      } else {
+        next.add(lineId);
+      }
+      return next;
+    });
+  };
+
+  const handleConfirmReorder = () => {
+    if (!detail || !onReorder || selectedLineIds.size === 0) {
+      return;
+    }
+
+    const selectedLines = detail.lines.filter(line => selectedLineIds.has(line.id));
+    onReorder({
+      customerId: detail.customerId || undefined,
+      phoneNumber: detail.phoneNumber,
+      deliveryNote: detail.deliveryNotes,
+      preferredDeliveryDate: detail.preferredDeliveryDate,
+      paymentMethodLineId: detail.paymentMethodLineId || undefined,
+      lines: selectedLines.map(line => ({
+        lineId: line.id,
+        productId: line.productId,
+        productName: line.product,
+        quantity: line.quantity,
+        unitPrice: line.unitPrice,
+        discountPercent: line.discountPercent,
+      })),
+    });
+  };
 
   const untaxed =
     detail && detail.untaxedAmount > 0
@@ -431,7 +551,19 @@ export function QuotationDetailView({
             </SurfaceCard>
 
             <SurfaceCard>
-              <DetailTabs tab={tab} onChange={setTab} />
+              <DetailTabs
+                tab={tab}
+                onChange={handleTabChange}
+                lineCount={detail.lines.length}
+                reorderMode={reorderMode}
+                selectedCount={selectedLineIds.size}
+                onReorderPress={handleReorderPress}
+                onConfirmReorder={handleConfirmReorder}
+                onCancelReorder={() => {
+                  setReorderMode(false);
+                  setSelectedLineIds(new Set());
+                }}
+              />
 
               {tab === 'lines' ? (
                 <View style={styles.tabPanel}>
@@ -440,14 +572,13 @@ export function QuotationDetailView({
                       No order lines.
                     </Text>
                   ) : (
-                    <LinesTable lines={detail.lines} />
+                    <LinesTable
+                      lines={detail.lines}
+                      selectionMode={reorderMode}
+                      selectedIds={selectedLineIds}
+                      onToggleLine={handleToggleLine}
+                    />
                   )}
-                  <Pressable style={styles.addProductRow}>
-                    <Icon source="plus" size={16} color={theme.colors.primary} />
-                    <Text style={[styles.addProductText, { color: theme.colors.primary }]}>
-                      ADD A PRODUCT
-                    </Text>
-                  </Pressable>
                 </View>
               ) : (
                 <View style={styles.tabPanel}>
@@ -596,10 +727,24 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     flex: 1,
   },
+  tabBarRow: {
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+  },
   tabBar: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    paddingHorizontal: 8,
+    flex: 1,
+    flexWrap: 'wrap',
+  },
+  tabActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexShrink: 0,
+    gap: 4,
+    paddingVertical: 4,
   },
   tab: {
     paddingHorizontal: 14,
@@ -649,6 +794,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 8,
   },
+  lineRowUnselected: {
+    opacity: 0.55,
+  },
   lineProductText: {
     fontSize: 13,
     fontWeight: '700',
@@ -662,6 +810,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+  lineColSelect: {
+    flexShrink: 0,
+    justifyContent: 'center',
+    width: 40,
+  },
   lineColProduct: { flex: 2.2, minWidth: 0, justifyContent: 'center' },
   lineColQty: { flex: 0.75, minWidth: 0, justifyContent: 'center' },
   lineColUnit: { flex: 0.55, minWidth: 0, justifyContent: 'center' },
@@ -671,17 +824,6 @@ const styles = StyleSheet.create({
   lineColAmount: { flex: 1.1, minWidth: 0, justifyContent: 'center' },
   cellTextRight: { textAlign: 'right' },
   cellTextCenter: { textAlign: 'center' },
-  addProductRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingTop: 4,
-  },
-  addProductText: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
   otherGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

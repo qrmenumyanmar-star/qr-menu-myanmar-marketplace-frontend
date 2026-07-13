@@ -1,8 +1,11 @@
 import {
   ContactSearchResult,
   ContactTag,
+  CreateAddressInput,
   CreateCustomerInput,
   Customer,
+  CustomerAddress,
+  CustomerAddressesResult,
   CustomerDetail,
   Township,
 } from '@/types/customer';
@@ -30,6 +33,21 @@ type SearchContactsResponse = {
 
 type CreateCustomerResponse = {
   data: Customer;
+};
+
+type CustomerAddressesResponse = {
+  data: CustomerAddressesResult;
+};
+
+type CreateAddressResponse = {
+  data: {
+    id: string;
+    name: string;
+    address: CustomerAddress | null;
+    companyId: string;
+    defaultAddressId: string;
+    addresses: CustomerAddress[];
+  };
 };
 
 export async function fetchCustomers(token: string): Promise<Customer[]> {
@@ -80,5 +98,32 @@ export async function createCustomer(
     method: 'POST',
     body: input,
   });
+  return response.data;
+}
+
+export async function fetchCustomerAddresses(
+  token: string,
+  customerId: string,
+): Promise<CustomerAddressesResult> {
+  const response = await apiRequest<CustomerAddressesResponse>(
+    `/customers/${customerId}/addresses`,
+    { token },
+  );
+  return response.data;
+}
+
+export async function createCustomerAddress(
+  token: string,
+  companyId: string,
+  input: CreateAddressInput,
+): Promise<CreateAddressResponse['data']> {
+  const response = await apiRequest<CreateAddressResponse>(
+    `/customers/${companyId}/addresses`,
+    {
+      token,
+      method: 'POST',
+      body: input,
+    },
+  );
   return response.data;
 }

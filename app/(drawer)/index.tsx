@@ -40,9 +40,13 @@ import { fetchProducts } from '@/services/products';
 import { fetchQuotationDetail, fetchQuotations, createQuotation, fetchPaymentMethods } from '@/services/quotations';
 import { Customer } from '@/types/customer';
 import { Product } from '@/types/product';
-import { Quotation, QuotationDetail, PaymentMethod } from '@/types/quotation';
+import { Quotation, QuotationDetail, PaymentMethod, QuotationReorderSeed } from '@/types/quotation';
 import { exportSelectedQuotations } from '@/utils/export-quotation-excel';
 import { exportSelectedQuotationsPdf } from '@/utils/export-quotation-pdf';
+import {
+  clearQuotationDraft,
+  shouldResumeQuotationDraft,
+} from '@/utils/quotation-draft-storage';
 import { PrintFormat } from '@/utils/print-quotation';
 
 const PAGE_SIZE = 50;
@@ -331,6 +335,9 @@ export default function QuotationScreen() {
   const [builderInitialCustomerId, setBuilderInitialCustomerId] = useState<string | null>(
     null,
   );
+  const [builderReorderSeed, setBuilderReorderSeed] = useState<QuotationReorderSeed | null>(
+    null,
+  );
   const [builderLoading, setBuilderLoading] = useState(false);
   const [builderError, setBuilderError] = useState('');
   const [builderSaving, setBuilderSaving] = useState(false);
@@ -368,6 +375,7 @@ export default function QuotationScreen() {
     createForCustomerId?: string;
   }>();
   const handledCreateParam = useRef<string | null>(null);
+  const resumeDraftCheckedRef = useRef(false);
 
   const filteredQuotations = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -401,46 +409,66 @@ export default function QuotationScreen() {
     setViewMode(prev => (prev === 'list' ? 'card' : 'list'));
   }, []);
 
+  const loadBuilderData = useCallback(async () => {
+    if (!session?.token) {
+      return;
+    }
+    setBuilderLoading(true);
+    setBuilderError('');
+    try {
+      const [customerData, productData] = await Promise.all([
+        fetchCustomers(session.token),
+        fetchProducts(session.token),
+      ]);
+      setBuilderCustomers(customerData);
+      setBuilderProducts(productData);
+
+      try {
+        const paymentMethodData = await fetchPaymentMethods(session.token);
+        setBuilderPaymentMethods(paymentMethodData);
+      } catch {
+        setBuilderPaymentMethods([]);
+      }
+    } catch (err) {
+      setBuilderError(
+        err instanceof Error ? err.message : 'Failed to load data from Odoo.',
+      );
+    } finally {
+      setBuilderLoading(false);
+    }
+  }, [session?.token]);
+
   const openBuilder = useCallback(
     async (customerId?: string) => {
       setBuilderOpen(true);
       setBuilderInitialCustomerId(customerId ?? null);
-      if (!session?.token) {
-        return;
-      }
-      setBuilderLoading(true);
-      setBuilderError('');
-      try {
-        const [customerData, productData] = await Promise.all([
-          fetchCustomers(session.token),
-          fetchProducts(session.token),
-        ]);
-        setBuilderCustomers(customerData);
-        setBuilderProducts(productData);
-
-        try {
-          const paymentMethodData = await fetchPaymentMethods(session.token);
-          setBuilderPaymentMethods(paymentMethodData);
-        } catch {
-          // Builder still works if payment-methods endpoint is unavailable
-          // (e.g. backend not yet deployed with the new route).
-          setBuilderPaymentMethods([]);
-        }
-      } catch (err) {
-        setBuilderError(
-          err instanceof Error ? err.message : 'Failed to load data from Odoo.',
-        );
-      } finally {
-        setBuilderLoading(false);
-      }
+      setBuilderReorderSeed(null);
+      await loadBuilderData();
     },
-    [session?.token],
+    [loadBuilderData],
   );
 
   const closeBuilder = useCallback(() => {
     setBuilderOpen(false);
     setBuilderInitialCustomerId(null);
-  }, []);
+    setBuilderReorderSeed(null);
+    if (session?.user?.id) {
+      void clearQuotationDraft(session.user.id);
+    }
+  }, [session?.user?.id]);
+
+  const handleReorderFromDetail = useCallback(
+    async (seed: QuotationReorderSeed) => {
+      setBuilderReorderSeed(seed);
+      setBuilderInitialCustomerId(seed.customerId ?? null);
+      setDetailId(null);
+      setDetail(null);
+      setDetailError('');
+      setBuilderOpen(true);
+      await loadBuilderData();
+    },
+    [loadBuilderData],
+  );
 
   useEffect(() => {
     if (!createForCustomerId || typeof createForCustomerId !== 'string') {
@@ -453,6 +481,23 @@ export default function QuotationScreen() {
     void openBuilder(createForCustomerId);
     router.setParams({ createForCustomerId: undefined });
   }, [createForCustomerId, openBuilder, router]);
+
+  useEffect(() => {
+    if (!session?.user?.id || resumeDraftCheckedRef.current) {
+      return;
+    }
+    if (createForCustomerId) {
+      return;
+    }
+
+    resumeDraftCheckedRef.current = true;
+
+    void shouldResumeQuotationDraft(session.user.id).then(should => {
+      if (should) {
+        void openBuilder();
+      }
+    });
+  }, [session?.user?.id, createForCustomerId, openBuilder]);
 
   const openDetail = useCallback(
     async (id: string) => {
@@ -685,8 +730,12 @@ export default function QuotationScreen() {
 
       try {
         const created = await createQuotation(session.token, draft);
+        if (session.user?.id) {
+          await clearQuotationDraft(session.user.id);
+        }
         await loadQuotations();
         setBuilderOpen(false);
+        setBuilderInitialCustomerId(null);
         setSnackbar(`Quotation ${created.number} saved to Odoo.`);
       } catch (err) {
         const message =
@@ -697,7 +746,7 @@ export default function QuotationScreen() {
         setBuilderSaving(false);
       }
     },
-    [session?.token, loadQuotations],
+    [session?.token, session?.user?.id, loadQuotations],
   );
 
   useEffect(() => {
@@ -719,6 +768,7 @@ export default function QuotationScreen() {
           loading={detailLoading}
           error={detailError}
           onBack={closeDetail}
+          onReorder={handleReorderFromDetail}
         />
         {printPreview ? (
           <QuotationPrintPreview
@@ -750,6 +800,8 @@ export default function QuotationScreen() {
           onSave={handleSaveDraft}
           saving={builderSaving}
           initialCustomerId={builderInitialCustomerId}
+          initialReorder={builderReorderSeed}
+          skipDraftRestore={Boolean(builderInitialCustomerId || builderReorderSeed)}
         />
         <Snackbar
           visible={!!snackbar}

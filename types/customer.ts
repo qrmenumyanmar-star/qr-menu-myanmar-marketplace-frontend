@@ -26,6 +26,40 @@ export type ContactSearchResult = {
   street2: string;
   city: string;
   township: string;
+  parentId?: string | null;
+  isCompany?: boolean;
+  type?: string;
+};
+
+export type CustomerAddress = {
+  id: string;
+  name: string;
+  phone: string;
+  street: string;
+  street2: string;
+  city: string;
+  township: string;
+  parentId: string | null;
+  isCompany: boolean;
+  isMain: boolean;
+  type: string;
+  label: string;
+};
+
+export type CustomerAddressesResult = {
+  companyId: string;
+  companyName: string;
+  defaultAddressId: string;
+  company: CustomerAddress;
+  addresses: CustomerAddress[];
+};
+
+export type CreateAddressInput = {
+  name: string;
+  phone?: string;
+  street?: string;
+  street2?: string;
+  townshipId: string;
 };
 
 export type Customer = {

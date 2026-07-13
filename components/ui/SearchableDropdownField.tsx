@@ -43,10 +43,12 @@ export function SearchableDropdownField({
     setQuery(value);
   }, [value]);
 
-  const sortedOptions = useMemo(
-    () => (sortOptions ? [...options].sort((a, b) => a.localeCompare(b)) : options),
-    [options, sortOptions],
-  );
+  const sortedOptions = useMemo(() => {
+    const unique = Array.from(
+      new Set(options.map(option => option.replace(/\s+/g, ' ').trim()).filter(Boolean)),
+    );
+    return sortOptions ? unique.sort((a, b) => a.localeCompare(b)) : unique;
+  }, [options, sortOptions]);
 
   const filteredOptions = useMemo(() => {
     const term = query.trim().toLowerCase();

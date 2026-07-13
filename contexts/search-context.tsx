@@ -147,6 +147,11 @@ export function useSearch() {
   return context;
 }
 
+/** Safe for Portal/modals that may render outside SearchProvider. */
+export function useOptionalSearch() {
+  return useContext(SearchContext);
+}
+
 /**
  * Enables the navbar search bar while the calling screen is focused and
  * returns the current query for local filtering.

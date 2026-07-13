@@ -15,7 +15,7 @@ import {
 
 import { SearchableDropdownField } from '@/components/ui/SearchableDropdownField';
 import { useAuth } from '@/contexts/auth-context';
-import { useSearch } from '@/contexts/search-context';
+import { useOptionalSearch } from '@/contexts/search-context';
 import { useResponsive } from '@/hooks/use-responsive';
 import {
   createCustomer,
@@ -23,7 +23,7 @@ import {
   fetchTownships,
   searchContactsByPhone,
 } from '@/services/customers';
-import { ContactSearchResult, ContactTag, Township } from '@/types/customer';
+import { ContactSearchResult, ContactTag, Customer, Township } from '@/types/customer';
 import { validateMyanmarPhone } from '@/utils/myanmar-phone';
 
 type CreateContactForm = {
@@ -88,14 +88,30 @@ function toggleTag(currentTagIds: string[], tagId: string): string[] {
     : [...currentTagIds, tagId];
 }
 
-export function CreateContactView() {
+type CreateContactViewProps = {
+  initialPhone?: string;
+  embedded?: boolean;
+  onCreated?: (customer: Customer) => void;
+  onCancel?: () => void;
+};
+
+export function CreateContactView({
+  initialPhone = '',
+  embedded = false,
+  onCreated,
+  onCancel,
+}: CreateContactViewProps = {}) {
   const theme = useTheme();
   const router = useRouter();
   const { session } = useAuth();
   const { isMobile } = useResponsive();
-  const { setDetailHeader } = useSearch();
+  const search = useOptionalSearch();
+  const setDetailHeader = search?.setDetailHeader;
 
-  const [form, setForm] = useState<CreateContactForm>(EMPTY_FORM);
+  const [form, setForm] = useState<CreateContactForm>({
+    ...EMPTY_FORM,
+    phone: initialPhone,
+  });
   const [townshipOptions, setTownshipOptions] = useState<Township[]>([]);
   const [tagOptions, setTagOptions] = useState<ContactTag[]>([]);
   const [loadingMeta, setLoadingMeta] = useState(true);
@@ -115,10 +131,18 @@ export function CreateContactView() {
   );
 
   const goBack = useCallback(() => {
+    if (onCancel) {
+      onCancel();
+      return;
+    }
     router.back();
-  }, [router]);
+  }, [onCancel, router]);
 
   useEffect(() => {
+    if (embedded || !setDetailHeader) {
+      return;
+    }
+
     setDetailHeader({
       title: 'New Contact',
       breadcrumbParent: 'Contacts',
@@ -126,7 +150,16 @@ export function CreateContactView() {
     });
 
     return () => setDetailHeader(null);
-  }, [goBack, setDetailHeader]);
+  }, [embedded, goBack, setDetailHeader]);
+
+  useEffect(() => {
+    if (!initialPhone) {
+      return;
+    }
+    setForm(current =>
+      current.phone === initialPhone ? current : { ...current, phone: initialPhone },
+    );
+  }, [initialPhone]);
 
   useEffect(() => {
     if (!session?.token) {
@@ -320,6 +353,11 @@ export function CreateContactView() {
         townshipId: matchedTownship.id,
         tagIds: form.tagIds.length > 0 ? form.tagIds : undefined,
       });
+
+      if (onCreated) {
+        onCreated(created);
+        return;
+      }
 
       router.replace({
         pathname: '/customers',
