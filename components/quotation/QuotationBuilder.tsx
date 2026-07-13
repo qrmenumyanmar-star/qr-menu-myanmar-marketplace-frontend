@@ -43,7 +43,15 @@ import { validateMyanmarPhone } from '@/utils/myanmar-phone';
 import { StoredQuotationDraft, clearQuotationDraft } from '@/utils/quotation-draft-storage';
 
 const ADD_NEW_ADDRESS_OPTION = '+ Add new address…';
-const SALE_PERSON_OPTIONS = ['Me Me', 'Htet Htet', 'Thiri'] as const;
+const SALE_PERSON_OPTIONS = [
+  'Me Me',
+  'Htet Htet',
+  'Thiri',
+  'Myo Min Khant',
+  'Zay Yar Htet',
+  'Zaw Htet Naing',
+  'Mya Mya Thin',
+] as const;
 
 function customerFromAddressCompany(
   company: CustomerAddress,
